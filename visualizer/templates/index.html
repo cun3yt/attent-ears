@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block header %}
+  <div class="ui menu">
+    <div class="header item">
+      Attent
+    </div>
+
+      {% if request.user.is_authenticated %}
+        <div class="ui pointing dropdown link item right">
+          <span class="text">{{request.user.first_name}} {{ request.user.last_name }}</span>
+          <i class="dropdown icon"></i>
+          <div class="menu">
+              <a class="item" href="/logout">
+                  Logout
+              </a>
+          </div>
+        </div>
+      {% else %}
+        <a class="item" href="{% url "social:begin" "google-oauth2" %}">
+          Sign In With Google
+        </a>
+      {% endif %}
+
+  </div>
+{% endblock %}
+
+{% block sidebar %}
+    {% if request.user.is_authenticated %}
+        {% for dashboard in all_dashboards %}
+          <a class="item {% if dashboard.id == selected_dashboard.id %}active{% endif %}" href="http://localhost:8000/?dashboard_id={{ dashboard.periscope_dashboard_id }}">
+              {{ dashboard.dashboard_name }}
+          </a>
+        {% endfor %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if request.user.is_authenticated %}
+        {% if no_dashboard_selected %}
+          <p>Please Select A Dashboard</p>
+        {% else %}
+          <p>
+            <iframe style="height:800px;" src="{{ selected_dashboard.url }}"></iframe>
+          </p>
+        {% endif %}
+    {% endif %}
+{% endblock %}
