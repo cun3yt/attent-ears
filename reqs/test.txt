@@ -1,0 +1,3 @@
+-r __base.txt
+
+model_mommy==1.3.2

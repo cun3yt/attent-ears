@@ -1,4 +1,4 @@
--r __base.txt
+-r test.txt
 
 django-extensions
 ipdb==0.10.3

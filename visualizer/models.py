@@ -5,6 +5,11 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from email_split import email_split
+import binascii
+import hmac
+import hashlib
+from urllib.parse import urlencode
+import json
 
 from core.mixins import TimeStampedMixin
 
@@ -26,10 +31,10 @@ class User(AbstractUser, TimeStampedMixin):
     client = models.ForeignKey(Client, null=True, on_delete=models.SET_NULL)
     # calendar = models.ForeignKey(Calendar, null=True, on_delete=models.SET_NULL)
 
-    @staticmethod
-    def users_without_calendar():
-        users_list = User.objects.filter(calendar__isnull=True).order_by('id')
-        return Paginator(users_list, 10)
+    # @staticmethod
+    # def users_without_calendar():
+    #     users_list = User.objects.filter(calendar__isnull=True).order_by('id')
+    #     return Paginator(users_list, 10)
 
 
 class PeriscopeDashboard(TimeStampedMixin):
@@ -41,6 +46,23 @@ class PeriscopeDashboard(TimeStampedMixin):
     periscope_dashboard_id = models.CharField(max_length=10)
     dashboard_name = models.CharField(max_length=255, default='')
     is_visible = models.BooleanField(default=False)
+
+    @staticmethod
+    def get_url():
+        return "https://www.periscopedata.com"
+
+    def get_embed_url(self, api_key):
+        data = {
+            'dashboard': self.periscope_dashboard_id,
+            'embed': 'v2',
+            'filters': [],
+        }
+
+        path = '/api/embedded_dashboard?%s' % urlencode({'data': json.dumps(data)})
+        sign = binascii.hexlify(hmac.new(bytes(api_key, encoding='utf8'), msg=path.encode('utf-8'),
+                                         digestmod=hashlib.sha256).digest()).decode("utf-8")
+        url = '{}{}&signature={}'.format(self.get_url(), path, sign)
+        return url
 
 
 @receiver(post_save, sender=User)

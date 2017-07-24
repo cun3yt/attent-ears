@@ -4,3 +4,4 @@ email_split==1.0.0
 social-auth-app-django==1.2.0
 celery==4.0.2
 google-api-python-client==1.6.2
+beautifulsoup4==4.6.0
