@@ -1,6 +1,5 @@
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import JSONField
-from django.core.paginator import Paginator
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
@@ -10,6 +9,7 @@ import hmac
 import hashlib
 from urllib.parse import urlencode
 import json
+from . import exceptions
 
 from core.mixins import TimeStampedMixin
 
@@ -29,12 +29,18 @@ class User(AbstractUser, TimeStampedMixin):
     class Meta:
         db_table = 'user'
     client = models.ForeignKey(Client, null=True, on_delete=models.SET_NULL)
-    # calendar = models.ForeignKey(Calendar, null=True, on_delete=models.SET_NULL)
 
-    # @staticmethod
-    # def users_without_calendar():
-    #     users_list = User.objects.filter(calendar__isnull=True).order_by('id')
-    #     return Paginator(users_list, 10)
+    def get_google_oauth2_user(self):
+        query_set = self.social_auth.filter(provider='google-oauth2')
+
+        if query_set.count() < 1:
+            exception_msg = "No Authentication Found for User Email: {}".format(self.email)
+            raise exceptions.OAuth2UserNotAvailable(message=exception_msg)
+        elif query_set.count() > 1:
+            exception_msg = "More Than One Authentication Found for User Email: {}".format(self.email)
+            raise exceptions.OAuth2UserNotAvailable(message=exception_msg)
+
+        return query_set[0]
 
 
 class PeriscopeDashboard(TimeStampedMixin):
