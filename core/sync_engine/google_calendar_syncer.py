@@ -202,9 +202,6 @@ class GoogleCalendarSyncEnvironment:
 
         calendars_list = self._storage.get_calendars(self._client)
 
-        import ipdb
-        ipdb.set_trace()
-
         for calendar in calendars_list:
             user = calendar.sync_user
             self._syncers[user.email].sync_calendar_meta(calendar.email_address)

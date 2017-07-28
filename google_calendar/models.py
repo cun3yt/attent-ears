@@ -1,11 +1,11 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from core.mixins import TimeStampedMixin
+from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
 
 from visualizer.models import User
 
 
-class GoogleCalendarListSync(TimeStampedMixin):
+class GoogleCalendarListSync(NoUpdateTimeStampedMixin):
     class Meta:
         db_table = 'google_calendar_list_sync'
 
@@ -34,7 +34,7 @@ class GoogleCalendarListSync(TimeStampedMixin):
         return None
 
 
-class GoogleCalendarApiLogs(models.Model):
+class GoogleCalendarApiLogs(NoUpdateTimeStampedMixin):
     class Meta:
         db_table = 'google_calendar_api_log'
 
