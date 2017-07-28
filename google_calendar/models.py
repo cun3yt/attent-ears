@@ -56,7 +56,9 @@ class GoogleCalendar(TimeStampedMixin):
 
     id = models.AutoField(primary_key=True)
     email_address = models.CharField(max_length=255)
+    etag = models.CharField(max_length=20, default="")
     sync_detail = JSONField(default={KEY_SYNC_STATE: VAL_SYNC_STATE_UNINITIALIZED})
     sync_user = models.ForeignKey(User)
     sync_user_history = JSONField(default={})
-    last_sync_datetime = models.DateTimeField(auto_now=True)
+    last_sync_datetime = models.DateTimeField(null=True, default=None)
+    is_kept_in_sync = models.BooleanField(default=True)

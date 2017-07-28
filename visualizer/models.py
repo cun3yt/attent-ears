@@ -24,6 +24,10 @@ class Client(TimeStampedMixin):
     email_domain = models.CharField(max_length=255)
     extra_info = JSONField(default={})
 
+    def is_email_address_in_domain(self, email_address: str):
+        email = email_split(email_address)
+        return email.domain == self.email_domain
+
 
 class User(AbstractUser, TimeStampedMixin):
     class Meta:

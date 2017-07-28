@@ -82,6 +82,20 @@ class GoogleCalendarStorage:
     def get_calendars(app_client: Client):
         return GoogleCalendar.objects.filter(sync_user__client=app_client)
 
+    def save_calendars(self, api_response, sync_user: User):
+        calendars = api_response.get('items', None)
+        for cal in calendars:
+            email_address = cal.get('id')
+
+            GoogleCalendar.objects.get_or_create(
+                email_address=email_address,
+                defaults={
+                    'etag': cal.get('etag', ""),
+                    'sync_user': sync_user,
+                    'is_kept_in_sync': sync_user.client.is_email_address_in_domain(email_address),
+                }
+            )
+
     def log(self, **kwargs):
         self._logger.log(**kwargs)
 
@@ -100,10 +114,12 @@ class GoogleCalendarSyncer:
     CAL_LIST_FIELDS = 'etag,items(accessRole,deleted,description,etag,hidden,id,location,' \
                       'primary,summary,summaryOverride,timeZone),nextPageToken,nextSyncToken'
 
+    _user = None
     _connector = None
     _storage = None
 
     def __init__(self, user: User, storage: GoogleCalendarStorage):
+        self._user = user
         self._connector = GoogleCalendarConnector(user=user)
         self._storage = storage
 
@@ -111,19 +127,23 @@ class GoogleCalendarSyncer:
         sync_state = self._storage.get_last_calendar_list_sync_state(self._connector.get_user()) # type: SyncState
 
         if sync_state.is_state_zero():
-            self._do_full_calendar_list_sync()
+            self._do_full_calendar_list_sync(sync_state)
         else:
             self._sync_calendar_list_from_state(sync_state)
 
-    def _do_full_calendar_list_sync(self):
+    def _do_full_calendar_list_sync(self, sync_state: SyncState):
+        self._sync_calendar_list_from_state(sync_state)
+
+    def _sync_calendar_list_from_state(self, state: SyncState):
         fields = self.CAL_LIST_FIELDS
         service = self._connector.get_service()
 
-        page_token = None
-        sync_token = None
+        page_token = state.page_token
+        sync_token = state.sync_token
 
         while True:
             response = service.calendarList().list(fields=fields, pageToken=page_token, syncToken=sync_token).execute()
+            self._storage.save_calendars(response, self._user)
             self._storage.log(email_address=self._connector.get_user().email,
                               resource='calendarList',
                               args={
@@ -151,9 +171,6 @@ class GoogleCalendarSyncer:
             if len(response['items']) == 0:
                 break
 
-    def _sync_calendar_list_from_state(self, state: SyncState):
-        fields = self.CAL_LIST_FIELDS
-        pass
 
     def sync_calendar_meta(self, calendar_id):
         """ calendar_id is the email address associated with the calendar
