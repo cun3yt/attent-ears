@@ -48,7 +48,6 @@ class GoogleCalendarApiLogs(NoUpdateTimeStampedMixin):
         new_log.save()
 
 
-
 class GoogleCalendar(TimeStampedMixin):
     class Meta:
         db_table = 'google_calendar'
@@ -61,7 +60,6 @@ class GoogleCalendar(TimeStampedMixin):
     KEY_SYNC_TOKEN = 'sync_token'
 
     email_address = models.CharField(max_length=255)
-    etag = models.CharField(max_length=20, default="")
     sync_detail = JSONField(default={KV_SYNC_STATE_KEY: KV_SYNC_STATE_VAL_UNINITIALIZED})
     sync_user = models.ForeignKey(User)
     sync_user_history = JSONField(default={})

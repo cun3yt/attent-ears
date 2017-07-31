@@ -7,7 +7,7 @@ import datetime
 from google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs
 
 
-class CalendarConnector:    # Google API connection for a given User
+class CalendarConnector:  # Google API connection for a given User
     _service = None
 
     def __init__(self, user: User):
@@ -70,7 +70,6 @@ class CalendarStorage:
             GoogleCalendar.objects.get_or_create(
                 email_address=email_address,
                 defaults={
-                    'etag': cal.get('etag', ""),
                     'sync_user': sync_user,
                     'is_kept_in_sync': sync_user.client.is_email_address_in_domain(email_address),
                 }
@@ -88,16 +87,14 @@ class CalendarStorage:
 
 
 class CalendarSyncer:
-    CAL_LIST_FIELDS = 'etag,items(accessRole,deleted,description,etag,hidden,id,location,' \
+    CAL_LIST_FIELDS = 'items(accessRole,deleted,description,hidden,id,location,' \
                       'primary,summary,summaryOverride,timeZone),nextPageToken,nextSyncToken'
 
-    CAL_EVENT_FIELDS = 'description,etag,items(anyoneCanAddSelf,attendees,attendeesOmitted,' \
-                       'colorId,created,creator,description,end,endTimeUnspecified,etag,' \
-                       'extendedProperties,guestsCanInviteOthers,guestsCanModify,guestsCanSeeOtherGuests,' \
-                       'hangoutLink,htmlLink,iCalUID,id,kind,location,locked,organizer,originalStartTime,' \
-                       'privateCopy,recurrence,recurringEventId,sequence,source,start,status,' \
-                       'summary,transparency,updated,visibility),kind,nextPageToken,nextSyncToken,' \
-                       'summary,timeZone'
+    CAL_EVENT_FIELDS = 'description,items(attendees,' \
+                       'created,creator,description,end,' \
+                       'htmlLink,id,location,organizer,originalStartTime,' \
+                       'recurrence,recurringEventId,sequence,source,start,status,' \
+                       'summary,transparency,updated,visibility),nextPageToken,nextSyncToken,timeZone'
 
     _user = None
     _connector = None
@@ -150,7 +147,7 @@ class CalendarSyncer:
                 page_token = response['nextPageToken']
 
             sync_object = GoogleCalendarListSyncState(user=self._user)
-            sync_object.sync_detail=sync_detail
+            sync_object.sync_detail = sync_detail
             sync_object.save()
 
             if not page_token:
@@ -163,6 +160,9 @@ class CalendarSyncer:
             self._do_full_calendar_events_sync(calendar, sync_state)
         else:
             self._sync_calendar_events_from_state(calendar, sync_state)
+
+        import ipdb
+        ipdb.set_trace()
 
     def _do_full_calendar_events_sync(self, calendar: GoogleCalendar, state):
         self._sync_calendar_events_from_state(calendar, state)
@@ -224,9 +224,9 @@ class SyncEnvironment:
     (error code: 410, https://developers.google.com/google-apps/calendar/v3/errors#410_gone).
     Other errors need to be handled, too.
     """
-    _client = None      # type: Client
-    _storage = None     # type: CalendarStorage
-    _syncers = {}       # type: dict
+    _client = None  # type: Client
+    _storage = None  # type: CalendarStorage
+    _syncers = {}  # type: dict
 
     def __init__(self, app_client: Client):
         self._client = app_client

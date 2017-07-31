@@ -16,12 +16,3 @@ except Exception as exc:
     print("-"*60)
     traceback.print_exc(file=sys.stdout)
     print("-"*60)
-
-
-def fetch_calendar_list(user: User):
-    syncer = CalendarConnector(user=user)
-    cal_service = syncer.get_service()
-    fields = 'etag,items(accessRole,deleted,description,etag,hidden,id,location,' \
-             'primary,summary,summaryOverride,timeZone),nextPageToken,nextSyncToken'
-    calendar_list = cal_service.calendarList().list(pageToken=None, fields=fields, syncToken=None).execute()
-    return calendar_list
