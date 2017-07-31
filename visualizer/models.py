@@ -75,7 +75,7 @@ class PeriscopeDashboard(TimeStampedMixin):
         return url
 
 
-@receiver(post_save, sender=User)
+@receiver(post_save, sender=User) # inanc's suggestion: social auth pipeline alternative
 def set_client_of_user(sender, instance, **kwargs):
     user = instance
 

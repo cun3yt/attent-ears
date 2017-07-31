@@ -20,6 +20,7 @@ class VisualizerViewsTest(TestCase):
             extra_info={
                 "periscope_api_key": "xyz"
             }
+            # dashboard__name='adsf' # Inanc's suggestion: one shot all relations
         )
 
         self.user = mommy.make(
