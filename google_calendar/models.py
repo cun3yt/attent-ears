@@ -2,7 +2,7 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
 
-from visualizer.models import User
+from visualizer.models import User, Client
 
 
 class GoogleCalendarListSyncState(NoUpdateTimeStampedMixin):
@@ -24,7 +24,7 @@ class GoogleCalendarListSyncState(NoUpdateTimeStampedMixin):
     @staticmethod
     def get_last_sync(user: User):
         try:
-            return GoogleCalendarListSyncState.objects.filter(user__id=user.id).order_by('-created_at')[0]
+            return GoogleCalendarListSyncState.objects.filter(user__id=user.id).order_by('-db_created_at')[0]
         except IndexError:
             return None
 
@@ -37,7 +37,6 @@ class GoogleCalendarApiLogs(NoUpdateTimeStampedMixin):
     resource = models.CharField(max_length=50)
     args = JSONField()
     response = JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
 
     @staticmethod
     def log(email_address, resource, args, response):
@@ -65,6 +64,7 @@ class GoogleCalendar(TimeStampedMixin):
     sync_user_history = JSONField(default={})
     last_sync_datetime = models.DateTimeField(null=True, default=None)
     is_kept_in_sync = models.BooleanField(default=True)
+    timezone = models.CharField(max_length=50, default="America/Los_Angeles")
 
     def get_page_token(self):
         return self.sync_detail.get(self.KEY_PAGE_TOKEN, None)
@@ -80,4 +80,19 @@ class GoogleCalendarEvent(TimeStampedMixin):
     class Meta:
         db_table = 'google_calendar_event'
 
+    client = models.ForeignKey(Client, null=True)
 
+    attendees = JSONField(default={})
+    created = models.DateTimeField()
+    creator = JSONField(default={})         # Creator: The one that created (wrote) the calendar event
+    description = models.TextField(default="", blank=True)
+    end = JSONField(default={})
+    html_link = models.CharField(max_length=2083, default="", blank=True)
+    event_id = models.CharField(max_length=1024, default="", blank=True)
+    organizer = JSONField(default={})       # Organizer: The one that own the event in her calendar
+    recurring_event_id = models.CharField(max_length=1024, default="", blank=True)
+    start = JSONField(default={})
+    status = models.CharField(max_length=10, default="", blank=True)
+    summary = models.TextField(default="", blank=True)
+    updated = models.DateTimeField()
+    process_time = models.DateTimeField(null=True, default=None)
