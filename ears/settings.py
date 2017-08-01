@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'google_calendar',
     'social_django',
     'visualizer',
+    'attent_calendar',
 ]
 
 MIDDLEWARE = [
