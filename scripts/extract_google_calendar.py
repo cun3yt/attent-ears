@@ -1,10 +1,11 @@
-from core.sync_engine.google_calendar_syncer import SyncEnvironment, CalendarConnector
-from visualizer.models import User, Client
+from core.sync_engine.google_calendar_syncer import SyncEnvironment
+from visualizer.models import Client
 from oauth2client.client import HttpAccessTokenRefreshError
 
-import sys, traceback
+import sys
+import traceback
 
-example_client = Client.objects.get(id=1)
+example_client = Client.objects.get(id=1)       # @todo Get this from args
 
 try:
     sync_environment = SyncEnvironment(app_client=example_client)
