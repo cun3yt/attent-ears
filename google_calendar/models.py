@@ -82,7 +82,7 @@ class GoogleCalendarEvent(TimeStampedMixin):
 
     client = models.ForeignKey(Client, null=True)
 
-    attendees = JSONField(default={})
+    attendees = JSONField(default=[])
     created = models.DateTimeField()
     creator = JSONField(default={})         # Creator: The one that created (wrote) the calendar event
     description = models.TextField(default="", blank=True)
@@ -95,4 +95,4 @@ class GoogleCalendarEvent(TimeStampedMixin):
     status = models.CharField(max_length=10, default="", blank=True)
     summary = models.TextField(default="", blank=True)
     updated = models.DateTimeField()
-    process_time = models.DateTimeField(null=True, default=None)
+    process_time = models.DateTimeField(db_index=True, null=True, default=None)

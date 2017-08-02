@@ -9,6 +9,7 @@ import hmac
 import hashlib
 from urllib.parse import urlencode
 import json
+from core.email_domains import is_email_address_in_domain
 from . import exceptions
 
 from core.mixins import TimeStampedMixin
@@ -25,8 +26,7 @@ class Client(TimeStampedMixin):
     extra_info = JSONField(default={})
 
     def is_email_address_in_domain(self, email_address: str):
-        email = email_split(email_address)
-        return email.domain == self.email_domain
+        return is_email_address_in_domain(email_address, self.email_domain)
 
 
 class User(AbstractUser, TimeStampedMixin):
