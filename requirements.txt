@@ -6,3 +6,4 @@ celery==4.0.2
 google-api-python-client==1.6.2
 beautifulsoup4==4.6.0
 django-model-utils==3.0.0
+gunicorn==19.7.1
