@@ -73,7 +73,6 @@ def transform_event_to_attent_event(gc_event: GoogleCalendarEvent):
     gc_event.process_time = timezone.now()
     gc_event.save()
 
-
 try:
     gc_events_not_processed = GoogleCalendarEvent.objects.filter(process_time__isnull=True)
 
