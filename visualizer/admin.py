@@ -6,7 +6,7 @@ admin.site.register(User, UserAdmin)
 
 
 class ClientAdmin(admin.ModelAdmin):
-    fields = ['name']
+    fields = ['name', 'website', 'email_domain', 'keep_in_sync']
     list_display = ('id', 'name', 'website', 'email_domain', 'keep_in_sync')
 
 admin.site.register(Client, ClientAdmin)
