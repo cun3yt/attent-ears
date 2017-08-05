@@ -69,14 +69,23 @@ class CalendarStorage:
             email_address = cal.get('id')
             timezone = cal.get('timeZone')
 
-            GoogleCalendar.objects.get_or_create(
+            access_role = cal.get('accessRole', 'freeBusyReader')
+            to_be_in_sync = sync_user.client.is_email_address_in_domain(email_address) \
+                and not (access_role == 'freeBusyReader')
+
+            calendar, _ = GoogleCalendar.objects.get_or_create(
                 email_address=email_address,
                 defaults={
                     'sync_user': sync_user,
-                    'is_kept_in_sync': sync_user.client.is_email_address_in_domain(email_address),
+                    'is_kept_in_sync': to_be_in_sync,
                     'timezone': timezone,
+                    'sync_user_access_role': access_role,
                 }
             )
+
+            if calendar.is_kept_in_sync != to_be_in_sync:
+                calendar.is_kept_in_sync = to_be_in_sync
+                calendar.save()
 
     @staticmethod
     def get_last_calendar_sync_state(calendar: GoogleCalendar):
