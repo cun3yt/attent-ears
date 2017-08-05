@@ -5,6 +5,8 @@ from oauth2client.client import HttpAccessTokenRefreshError
 import sys
 import traceback
 
+print("Script: Extract Google Calendar Script Runs")
+
 clients = Client.objects.filter(keep_in_sync=True)
 
 print("Number of clients to keep in sync: {}".format(len(clients)))
