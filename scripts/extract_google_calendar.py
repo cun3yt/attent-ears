@@ -17,9 +17,9 @@ try:
         sync_environment = SyncEnvironment(app_client=client)
         sync_environment.sync()
 except HttpAccessTokenRefreshError as exc:
-    print("Log This: Refresh Token is Failed for Client: {}, Exception Details: {}".format(example_client.id, exc))
+    print("Log This: Refresh Token is Failed Exception Details: {}".format(exc))
 except Exception as exc:
-    print("Log This: Unexpected Exception for Client: {}, Exception Details: {}".format(example_client.id, exc))
+    print("Log This: Unexpected Exception. Exception Details: {}".format(exc))
     print("-"*60)
     traceback.print_exc(file=sys.stdout)
     print("-"*60)
