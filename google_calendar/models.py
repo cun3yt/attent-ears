@@ -63,7 +63,7 @@ class GoogleCalendar(TimeStampedMixin):
     sync_user = models.ForeignKey(User)
     sync_user_history = JSONField(default={})
     last_sync_datetime = models.DateTimeField(null=True, default=None)
-    is_kept_in_sync = models.BooleanField(default=True)
+    is_kept_in_sync = models.BooleanField(db_index=True, default=True)
     timezone = models.CharField(max_length=50, default="America/Los_Angeles")
 
     def get_page_token(self):
@@ -88,7 +88,7 @@ class GoogleCalendarEvent(TimeStampedMixin):
     description = models.TextField(default="", blank=True)
     end = JSONField(default={})
     html_link = models.CharField(max_length=2083, default="", blank=True)
-    event_id = models.CharField(max_length=1024, default="", blank=True)
+    event_id = models.CharField(db_index=True, max_length=1024, default="", blank=True)
     organizer = JSONField(default={})       # Organizer: The one that own the event in her calendar
     recurring_event_id = models.CharField(max_length=1024, default="", blank=True)
     start = JSONField(default={})

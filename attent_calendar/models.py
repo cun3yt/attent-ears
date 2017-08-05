@@ -12,7 +12,7 @@ class AttentCalendar(TimeStampedMixin):
     google_calendar = models.ForeignKey(GoogleCalendar, on_delete=models.CASCADE)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
 
-    email_address = models.CharField(max_length=255)
+    email_address = models.CharField(db_index=True, max_length=255)
     timezone = models.CharField(max_length=50, default="America/Los_Angeles")
 
 
@@ -75,6 +75,8 @@ class AttentCalendarEventHasInternalAttendee(TimeStampedMixin):
     internal_attendee = models.ForeignKey(InternalAttendee, on_delete=models.CASCADE)
     response_status = models.CharField(max_length=20, default='')
 
+    index_together = ["attent_calendar_event", "internal_attendee"]
+
 
 class AttentCalendarEventHasExternalAttendee(TimeStampedMixin):
     class Meta:
@@ -82,3 +84,5 @@ class AttentCalendarEventHasExternalAttendee(TimeStampedMixin):
     attent_calendar_event = models.ForeignKey(AttentCalendarEvent, on_delete=models.CASCADE)
     external_attendee = models.ForeignKey(ExternalAttendee, on_delete=models.CASCADE)
     response_status = models.CharField(max_length=20, default='')
+
+    index_together = ["attent_calendar_event", "external_attendee"]
