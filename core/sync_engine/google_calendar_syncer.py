@@ -102,7 +102,7 @@ class CalendarStorage:
 
             event_defaults = {
                 'attendees': event_item.get('attendees', {}),
-                'created': event_item.get('created'),
+                'created': event_item.get('created', event_item.get('updated')),
                 'creator': event_item.get('creator', {}),
                 'description': event_item.get('description', ''),
                 'end': event_item.get('end', {}),
@@ -113,10 +113,9 @@ class CalendarStorage:
                 'summary': event_item.get('summary', ''),
                 'updated': event_item.get('updated'),
                 'client': client,
+                'status': event_item.get('status'),
             }
 
-            if event_defaults.get('created') is None:
-                raise Exception("Empty 'created' field", event_item)
             if event_defaults.get('updated') is None:
                 raise Exception("Empty 'updated' field", event_item)
 
