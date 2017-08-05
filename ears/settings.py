@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'social_django',
     'visualizer',
     'attent_calendar',
+    'sslserver',
 ]
 
 MIDDLEWARE = [
