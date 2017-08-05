@@ -4,6 +4,8 @@ from attent_calendar.models import AttentCalendar
 import sys
 import traceback
 
+print("Script: Transform Google Calendar Script Runs")
+
 try:
     # Google Calendars set to be kept in sync get created or updated as Attent Calendar
     calendars_to_update_or_create = GoogleCalendar.objects.filter(is_kept_in_sync=True)
