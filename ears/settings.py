@@ -86,7 +86,7 @@ WSGI_APPLICATION = 'ears.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'spin1_db',
+        'NAME': 'spin2_db',
         'USER': 'db_master_user',
         'PASSWORD': 'sample12!~_!s',
         'HOST': 'db-development.cc6flkhfnl9u.us-west-2.rds.amazonaws.com',
