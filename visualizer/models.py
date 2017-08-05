@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 import json
 from core.email_domains import is_email_address_in_domain
 from . import exceptions
+from core.email_domains import is_email_address_personal
 
 from core.mixins import TimeStampedMixin
 
@@ -24,6 +25,7 @@ class Client(TimeStampedMixin):
     website = models.CharField(max_length=255)
     email_domain = models.CharField(max_length=255)
     extra_info = JSONField(default={})
+    keep_in_sync = models.BooleanField(default=False)
 
     def is_email_address_in_domain(self, email_address: str):
         return is_email_address_in_domain(email_address, self.email_domain)
@@ -83,6 +85,10 @@ def set_client_of_user(sender, instance, **kwargs):
         return
 
     email = email_split(user.email)
+
+    if is_email_address_personal(email.domain):     # admin user may be from a personal domain
+        return
+
     client, _ = Client.objects.get_or_create(email_domain=email.domain)
     user.client = client
     user.save()
