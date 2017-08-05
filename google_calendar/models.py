@@ -65,6 +65,7 @@ class GoogleCalendar(TimeStampedMixin):
     last_sync_datetime = models.DateTimeField(null=True, default=None)
     is_kept_in_sync = models.BooleanField(db_index=True, default=True)
     timezone = models.CharField(max_length=50, default="America/Los_Angeles")
+    sync_user_access_role = models.CharField(max_length=30, default="freeBusyReader")
 
     def get_page_token(self):
         return self.sync_detail.get(self.KEY_PAGE_TOKEN, None)
