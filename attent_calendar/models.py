@@ -14,6 +14,9 @@ class AttentCalendar(TimeStampedMixin):
 
     email_address = models.CharField(db_index=True, max_length=255)
     timezone = models.CharField(max_length=50, default="America/Los_Angeles")
+    first_name = models.CharField(max_length=30, default="")
+    last_name = models.CharField(max_length=30, default="")
+    title = models.CharField(max_length=40, default="")
 
 
 class InternalAttendee(TimeStampedMixin):
