@@ -96,7 +96,7 @@ def outreach_redirect(request):
     print("-"*60)
 
     api_connection = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
-    api_connection.data = resp.get('_content')
+    api_connection.data = resp.text
     api_connection.save()
 
     HttpResponse("Hello")
