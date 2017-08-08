@@ -93,6 +93,11 @@ def outreach_redirect(request):
     resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
 
     api_connection = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
-    api_connection.data = resp  # access_token, refresh_token, and expires_in
+    api_connection.data = {
+        'access_token': request.POST.get('access_token'), # access_token, refresh_token, and expires_in
+        'refresh_token': request.POST.get('refresh_token'),
+        'expires_in': request.POST.get('expires_in'),
+    }
+    api_connection.save()
 
-    HttpResponse(request)
+    HttpResponse("Hello")
