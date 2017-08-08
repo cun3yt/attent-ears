@@ -3,7 +3,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.urls import reverse
 from django.http import HttpResponse
-from ears.api_connection import outreach_connect_url
+from ears.api_connection import outreach_connect_url, outreach_exchange_for_access_token
+from visualizer.models import UserApiConnection
 
 
 def index(request):
@@ -85,5 +86,13 @@ def settings(request):
 def outreach_redirect(request):
     if not request.user.is_authenticated():
         redirect('/')
+
+    authorization_code = request.GET.get('code')
+
+    redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
+    resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
+
+    api_connection = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
+    api_connection.data = resp  # access_token, refresh_token, and expires_in
 
     HttpResponse(request)

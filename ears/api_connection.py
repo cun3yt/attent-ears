@@ -1,4 +1,5 @@
 from urllib.parse import urlencode
+import requests
 
 OUTREACH_CONNECTION = {
     'client_id': '269ba724e0cd0a12ca3b46439c31bb2f13f19cd9c862b965081846d766fe07fa',
@@ -29,3 +30,14 @@ def outreach_connect_url(redirect_uri):
         'scope': scope_str,
     }
     return 'https://api.outreach.io/oauth/authorize?{}'.format(urlencode(query))
+
+
+def outreach_exchange_for_access_token(authorization_code, redirect_uri):
+    return requests.post('https://api.outreach.io/oauth/token',
+                         {
+                             'client_id': OUTREACH_CONNECTION['client_id'],
+                             'client_secret': OUTREACH_CONNECTION['client_secret'],
+                             'redirect_uri': redirect_uri,
+                             'grant_type': 'authorization_code',
+                             'code': authorization_code,
+                         })
