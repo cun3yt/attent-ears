@@ -9,4 +9,4 @@ django-model-utils==3.0.0
 django-extensions==1.8.1
 gunicorn==19.7.1
 django-sslserver==0.20
-requests=2.18.1
+requests==2.18.1
