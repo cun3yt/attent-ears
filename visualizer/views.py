@@ -92,7 +92,7 @@ def outreach_redirect(request):
     redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
     resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
 
-    print(resp.__dict__)
+    print(resp.text)
     print("-"*60)
 
     api_connection = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
