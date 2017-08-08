@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+  <title>{% block title %}Attent{% endblock %}</title>
+  <link rel="stylesheet" type="text/css" href="{% static "/semantic/dist/semantic.min.css" %}">
+  <link rel="stylesheet" href="{% static "main.css" %}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>

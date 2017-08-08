@@ -1,0 +1,26 @@
+{% extends "__clean.html" %}
+
+{% block content %}
+    <h1>Settings</h1>
+
+    <h2>User Info</h2>
+    <p>
+        Email Address: {{request.user.email}}
+    </p>
+
+    <h2>Data Sources</h2>
+    <p>
+      <ul>
+        {% for connection in api_connections.data_api %}
+            <li>
+              {{ connection.setting_name }}:
+              {% if connection.detail %}
+                  Connected
+              {% else %}
+                  <a href="{{ connection.connect_url }}">Connect Now</a>
+              {% endif %}
+            </li>
+        {% endfor %}
+      </ul>
+    </p>
+{% endblock %}

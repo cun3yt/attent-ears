@@ -1,6 +1,9 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
+from django.urls import reverse
+from django.http import HttpResponse
+from ears.api_connection import outreach_connect_url
 
 
 def index(request):
@@ -44,3 +47,43 @@ def sign_out(request):
         logout(request)
 
     return redirect('/')
+
+
+def settings(request):
+    if not request.user.is_authenticated():
+        redirect('/')
+
+    template = 'settings.html'
+
+    current_outreach_connection = None
+    try:
+        current_outreach_connection = request.user.api_connections.get(type='outreach')
+    except Exception as e:
+        pass
+
+    outreach_connection = {
+        'name': 'outreach',
+        'setting_name': 'Outreach',
+        'detail': current_outreach_connection,
+    }
+
+    if not current_outreach_connection:
+        redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
+        outreach_connection['connect_url'] = outreach_connect_url(redirect_uri)
+
+    api_connections = {
+        'data_api': [outreach_connection],
+    }
+
+    context = {
+        'api_connections': api_connections,
+    }
+
+    return render(request, template, context=context)
+
+
+def outreach_redirect(request):
+    if not request.user.is_authenticated():
+        redirect('/')
+
+    HttpResponse(request)
