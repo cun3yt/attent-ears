@@ -95,7 +95,7 @@ def outreach_redirect(request):
     print(resp.text)
     print("-"*60)
 
-    api_connection = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
+    api_connection, _ = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
     api_connection.data = resp.text
     api_connection.save()
 
