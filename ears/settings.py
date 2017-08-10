@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'google_calendar',
     'social_django',
+    'apps.api_connection',
     'visualizer',
     'attent_calendar',
     'sslserver',
