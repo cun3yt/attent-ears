@@ -14,5 +14,3 @@ class OutreachMailing(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_mailing'
     pass
-
-
