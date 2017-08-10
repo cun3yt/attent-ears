@@ -1,5 +1,8 @@
 from urllib.parse import urlencode
 import requests
+import json
+from datetime import datetime
+from apps.api_connection.models import ApiConnection
 
 OUTREACH_CONNECTION = {
     'client_id': '269ba724e0cd0a12ca3b46439c31bb2f13f19cd9c862b965081846d766fe07fa',
@@ -41,3 +44,37 @@ def outreach_exchange_for_access_token(authorization_code, redirect_uri):
                              'grant_type': 'authorization_code',
                              'code': authorization_code,
                          })
+
+
+def _is_outreach_token_about_to_expire(user_api_connection: ApiConnection):
+    precision_in_seconds = 15
+
+    data = json.loads(user_api_connection.data)
+    current_ts = int(datetime.timestamp(datetime.now()))
+    return (data['expires_in'] + data['created_at'] + precision_in_seconds) <= current_ts
+
+
+def outreach_refresh_access_token_if_needed(user_api_connection: ApiConnection, redirect_uri):
+    if user_api_connection.type != 'outreach':
+        raise Exception("ApiConnection object is not of type 'outreach'")
+
+    if not _is_outreach_token_about_to_expire(user_api_connection):
+        return user_api_connection
+
+    data = json.loads(user_api_connection.data)
+    resp = requests.post('https://api.outreach.io/oauth/token',
+                         {
+                             'client_id': OUTREACH_CONNECTION['client_id'],
+                             'client_secret': OUTREACH_CONNECTION['client_secret'],
+                             'redirect_uri': redirect_uri,
+                             'grant_type': 'refresh_token',
+                             'refresh_token': data['refresh_token'],
+                         })
+
+    if resp.status_code != 200:
+        raise Exception("Refresh Token Failure for Outreach with ApiConnection ID: {} - Response: {}"
+                        .format(user_api_connection.id, resp.text))
+
+    user_api_connection.data = resp.text
+    user_api_connection.save()
+    return user_api_connection

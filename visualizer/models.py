@@ -77,17 +77,6 @@ class PeriscopeDashboard(TimeStampedMixin):
         return url
 
 
-class UserApiConnection(TimeStampedMixin):
-    class Meta:
-        db_table = 'user_api_connection'
-
-    user = models.ForeignKey(User,
-                             related_name='api_connections',
-                             related_query_name='api_connection')
-    type = models.CharField(max_length=30, default='')
-    data = JSONField(default={})
-
-
 @receiver(post_save, sender=User) # inanc's suggestion: social auth pipeline alternative
 def set_client_of_user(sender, instance, **kwargs):
     user = instance

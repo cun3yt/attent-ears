@@ -4,7 +4,7 @@ from django.contrib.auth import logout
 from django.urls import reverse
 from django.http import HttpResponse
 from ears.api_connection import outreach_connect_url, outreach_exchange_for_access_token
-from visualizer.models import UserApiConnection
+from apps.api_connection.models import ApiConnection
 
 
 def index(request):
@@ -92,7 +92,7 @@ def outreach_redirect(request):
     redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
     resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
 
-    api_connection, _ = UserApiConnection.objects.get_or_create(type='outreach', user=request.user)
+    api_connection, _ = ApiConnection.objects.get_or_create(type='outreach', user=request.user)
     api_connection.data = resp.text
     api_connection.save()
 

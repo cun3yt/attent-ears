@@ -1,0 +1,15 @@
+from django.db import models
+from django.contrib.postgres.fields import JSONField
+from core.mixins import TimeStampedMixin
+from visualizer.models import User
+
+
+class ApiConnection(TimeStampedMixin):
+    class Meta:
+        db_table = 'api_connection'
+
+    user = models.ForeignKey(User,
+                             related_name='api_connections',
+                             related_query_name='api_connection')
+    type = models.CharField(max_length=30, default='')
+    data = JSONField(default={})
