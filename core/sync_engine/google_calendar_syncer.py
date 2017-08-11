@@ -157,7 +157,8 @@ class CalendarSyncer:
                       'primary,summary,summaryOverride,timeZone),nextPageToken,nextSyncToken'
 
     CAL_EVENT_FIELDS = 'items(' \
-                       'attendees,created,creator(displayName,email),description,' \
+                       'attendees(additionalGuests,displayName,email,id,optional,resource,responseStatus),' \
+                       'created,creator(displayName,email),description,' \
                        'end,htmlLink,id,organizer(displayName,email),recurringEventId,' \
                        'start,status,summary,updated' \
                        '),' \
