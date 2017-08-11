@@ -4,10 +4,10 @@ from visualizer.models import User, Client
 from ears.auth_settings import GOOGLE_OAUTH2_KEY, GOOGLE_OAUTH2_SECRET, GOOGLE_TOKEN_URI
 from oauth2client import client
 import datetime
+from django.utils import timezone
 from google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs, \
     GoogleCalendarEvent
 from googleapiclient.errors import HttpError
-import logging
 import json
 import sys
 
@@ -176,7 +176,7 @@ class CalendarSyncer:
         self._storage = storage
 
     def sync_calendar_list(self):
-
+        print("Syncing Calendar List for {}".format(self._user.email))
         for trial in range(3):
             try:
                 sync_state = self._storage.get_last_calendar_list_sync_state(self._user)
@@ -184,11 +184,11 @@ class CalendarSyncer:
                 break
             except RetrySync as e:
                 if e.status_code == 410:
-                    logging.info("Wiping out list sync state for user: {}".format(self._user.id))
+                    print("Wiping out list sync state for user: {}".format(self._user.id))
                     sync_object = GoogleCalendarListSyncState(user=self._user)
                     sync_object.save()
             except Exception as e:
-                logging.error("Unexpected error: {}", sys.exc_info()[0])
+                print("Unexpected error: {}", sys.exc_info()[0])
 
     def _sync_calendar_list_from_state(self, sync_state):
         fields = self.CAL_LIST_FIELDS
@@ -199,12 +199,13 @@ class CalendarSyncer:
 
         while True:
             try:
+                print(" fetching page of calendar list")
                 response = service.calendarList().list(fields=fields, pageToken=page_token, syncToken=sync_token)\
                     .execute()
             except HttpError as exception:
                 status_code = exception.resp.status
                 error_msg = json.loads(exception.content)['error']['errors'][0]['message']
-                logging.info("Error: Code ['{}'], Message ['{}']".format(status_code, error_msg))
+                print("Error: Code ['{}'], Message ['{}']".format(status_code, error_msg))
                 self._storage.log(email_address=self._user.email,
                                   resource='calendarList',
                                   args={'fields': fields,
@@ -241,6 +242,7 @@ class CalendarSyncer:
 
             if not page_token:
                 break
+        print(' calendar list fetching function is done')
 
     def sync_calendar_events(self, calendar: GoogleCalendar):
         sync_state = self._storage.get_last_calendar_sync_state(calendar)
@@ -263,6 +265,8 @@ class CalendarSyncer:
 
             if sync_state.get(GoogleCalendar.KV_SYNC_STATE_KEY) == GoogleCalendar.KV_SYNC_STATE_VAL_UNINITIALIZED:
                 query_params['timeMin'] = self.CAL_EVENT_TIME_MIN
+
+            print(" Fetching a page of events for calendar: {}".format(calendar.email_address))
 
             response = service.events().list(**query_params).execute()
 
@@ -288,11 +292,13 @@ class CalendarSyncer:
                 page_token = next_page_token
 
             calendar.sync_detail = sync_detail
-            calendar.last_sync_datetime = datetime.datetime.now()
+            calendar.last_sync_datetime = timezone.now()
             calendar.save()
 
             if not page_token:
                 break
+
+        print(" Calendar Event Fetching is Done for {}".format(calendar.email_address))
 
 
 class SyncEnvironment:
@@ -324,4 +330,5 @@ class SyncEnvironment:
 
         for calendar in calendars_list:
             user = calendar.sync_user
+            print("Syncing Calendar Events for {}, sync user: {}".format(calendar.email_address, user.email))
             self._syncers[user.email].sync_calendar_events(calendar)
