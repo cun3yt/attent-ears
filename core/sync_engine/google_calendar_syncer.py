@@ -146,7 +146,7 @@ class CalendarSyncer:
                        '),' \
                        'nextPageToken,nextSyncToken,timeZone'
 
-    CAL_EVENT_TIME_MIN = '2017-01-01T00:00:00+00:00'
+    CAL_EVENT_TIME_MIN = '2015-01-01T00:00:00+00:00'
 
     _user = None
     _connector = None
