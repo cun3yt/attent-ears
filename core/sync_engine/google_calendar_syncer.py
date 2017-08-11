@@ -111,7 +111,7 @@ class CalendarStorage:
     # Wrap everything in a transaction to avoid half sync'ed state!
 
     @staticmethod
-    def save_calendar_events(api_response, client: Client):
+    def save_calendar_events(api_response, app_client: Client):
         event_list = api_response.get('items')
 
         for event_item in event_list:
@@ -135,10 +135,10 @@ class CalendarStorage:
                 'html_link': event_item.get('htmlLink', ''),
                 'organizer': event_item.get('organizer', {}),
                 'start': event_item.get('start', {}),
-                'recurring_event_id': event_item.get('recurring_event_id', ''),
+                'recurring_event_id': event_item.get('recurringEventId', ''),
                 'summary': event_item.get('summary', ''),
                 'updated': event_item.get('updated'),
-                'client': client,
+                'client': app_client,
                 'status': event_item.get('status'),
             }
 
