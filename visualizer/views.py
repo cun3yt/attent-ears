@@ -54,8 +54,6 @@ def settings(request):
     if not request.user.is_authenticated():
         redirect('/')
 
-    template = 'settings.html'
-
     current_outreach_connection = None
     try:
         current_outreach_connection = request.user.api_connections.get(type='outreach')
@@ -80,7 +78,7 @@ def settings(request):
         'api_connections': api_connections,
     }
 
-    return render(request, template, context=context)
+    return render(request, 'settings.html', context=context)
 
 
 def outreach_redirect(request):
