@@ -74,29 +74,27 @@ def transform_event_to_attent_event(gc_event: GoogleCalendarEvent):
     gc_event.save()
 
 
-print("Script: Transform Google Calendar Event Script Runs")
+def run():
+    print("Script: Transform Google Calendar Event Script Runs")
 
-try:
-    gc_events_not_processed = GoogleCalendarEvent.objects.filter(process_time__isnull=True)
+    try:
+        gc_events_not_processed = GoogleCalendarEvent.objects.filter(process_time__isnull=True)
 
-    for gc_event in gc_events_not_processed:
-        # update or create an entry in AttentCalendarEvent.
-        # Possibility: google_calendar_event is repopulated
-        transform_event_to_attent_event(gc_event)
+        for gc_event in gc_events_not_processed:
+            # update or create an entry in AttentCalendarEvent.
+            # Possibility: google_calendar_event is repopulated
+            transform_event_to_attent_event(gc_event)
 
-    gc_events_updated = GoogleCalendarEvent.objects.filter(process_time__isnull=False, process_time__lt=F('updated'))
+        gc_events_updated = GoogleCalendarEvent.objects.filter(process_time__isnull=False, process_time__lt=F('updated'))
 
-    for gc_event in gc_events_updated:
-        # update or create an entry in AttentCalendarEvent.
-        # Creation should not be needed, just in case.
-        transform_event_to_attent_event(gc_event)
-
-
-except Exception as exc:
-    print("Log This: Unexpected Exception Exception Details: {}".format(exc))
-    print("-"*60)
-    traceback.print_exc(file=sys.stdout)
-    print("-"*60)
+        for gc_event in gc_events_updated:
+            # update or create an entry in AttentCalendarEvent.
+            # Creation should not be needed, just in case.
+            transform_event_to_attent_event(gc_event)
 
 
-
+    except Exception as exc:
+        print("Log This: Unexpected Exception Exception Details: {}".format(exc))
+        print("-"*60)
+        traceback.print_exc(file=sys.stdout)
+        print("-"*60)
