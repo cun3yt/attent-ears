@@ -4,8 +4,17 @@ from visualizer.models import User, Client
 from ears.auth_settings import GOOGLE_OAUTH2_KEY, GOOGLE_OAUTH2_SECRET, GOOGLE_TOKEN_URI
 from oauth2client import client
 import datetime
+from django.utils import timezone
 from google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs, \
     GoogleCalendarEvent
+from googleapiclient.errors import HttpError
+import json
+import sys
+
+
+class RetrySync(Exception):
+    def __init__(self, status_code):
+        self.status_code = status_code
 
 
 class CalendarConnector:  # Google API connection for a given User
@@ -83,9 +92,17 @@ class CalendarStorage:
                 }
             )
 
-            if calendar.is_kept_in_sync != to_be_in_sync:
-                calendar.is_kept_in_sync = to_be_in_sync
-                calendar.save()
+            if calendar.sync_user.id != sync_user.id:           # Will this cause flip flops and sync state problems?
+                history_item = {'user_id': calendar.sync_user.id,
+                                'end': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                calendar.sync_user_history['list'] = calendar.sync_user_history.get('list', [])
+                calendar.sync_user_history['list'].append(history_item)
+
+            calendar.sync_user = sync_user
+            calendar.is_kept_in_sync = to_be_in_sync
+            calendar.timezone = timezone
+            calendar.sync_user_access_role = access_role
+            calendar.save()
 
     @staticmethod
     def get_last_calendar_sync_state(calendar: GoogleCalendar):
@@ -94,7 +111,7 @@ class CalendarStorage:
     # Wrap everything in a transaction to avoid half sync'ed state!
 
     @staticmethod
-    def save_calendar_events(api_response, client: Client):
+    def save_calendar_events(api_response, app_client: Client):
         event_list = api_response.get('items')
 
         for event_item in event_list:
@@ -118,10 +135,10 @@ class CalendarStorage:
                 'html_link': event_item.get('htmlLink', ''),
                 'organizer': event_item.get('organizer', {}),
                 'start': event_item.get('start', {}),
-                'recurring_event_id': event_item.get('recurring_event_id', ''),
+                'recurring_event_id': event_item.get('recurringEventId', ''),
                 'summary': event_item.get('summary', ''),
                 'updated': event_item.get('updated'),
-                'client': client,
+                'client': app_client,
                 'status': event_item.get('status'),
             }
 
@@ -140,13 +157,14 @@ class CalendarSyncer:
                       'primary,summary,summaryOverride,timeZone),nextPageToken,nextSyncToken'
 
     CAL_EVENT_FIELDS = 'items(' \
-                       'attendees,created,creator(displayName,email),description,' \
+                       'attendees(additionalGuests,displayName,email,id,optional,resource,responseStatus),' \
+                       'created,creator(displayName,email),description,' \
                        'end,htmlLink,id,organizer(displayName,email),recurringEventId,' \
                        'start,status,summary,updated' \
                        '),' \
                        'nextPageToken,nextSyncToken,timeZone'
 
-    CAL_EVENT_TIME_MIN = '2017-01-01T00:00:00+00:00'
+    CAL_EVENT_TIME_MIN = '2015-01-01T00:00:00+00:00'
 
     _user = None
     _connector = None
@@ -158,8 +176,19 @@ class CalendarSyncer:
         self._storage = storage
 
     def sync_calendar_list(self):
-        sync_state = self._storage.get_last_calendar_list_sync_state(self._user)
-        self._sync_calendar_list_from_state(sync_state)
+        print("Syncing Calendar List for {}".format(self._user.email))
+        for trial in range(3):
+            try:
+                sync_state = self._storage.get_last_calendar_list_sync_state(self._user)
+                self._sync_calendar_list_from_state(sync_state)
+                break
+            except RetrySync as e:
+                if e.status_code == 410:
+                    print("Wiping out list sync state for user: {}".format(self._user.id))
+                    sync_object = GoogleCalendarListSyncState(user=self._user)
+                    sync_object.save()
+            except Exception as e:
+                print("Unexpected error: {}", sys.exc_info()[0])
 
     def _sync_calendar_list_from_state(self, sync_state):
         fields = self.CAL_LIST_FIELDS
@@ -169,7 +198,22 @@ class CalendarSyncer:
         sync_token = sync_state.get('sync_token')
 
         while True:
-            response = service.calendarList().list(fields=fields, pageToken=page_token, syncToken=sync_token).execute()
+            try:
+                print(" fetching page of calendar list")
+                response = service.calendarList().list(fields=fields, pageToken=page_token, syncToken=sync_token)\
+                    .execute()
+            except HttpError as exception:
+                status_code = exception.resp.status
+                error_msg = json.loads(exception.content)['error']['errors'][0]['message']
+                print("Error: Code ['{}'], Message ['{}']".format(status_code, error_msg))
+                self._storage.log(email_address=self._user.email,
+                                  resource='calendarList',
+                                  args={'fields': fields,
+                                        'pageToken': page_token,
+                                        'syncToken': sync_token},
+                                  response={'statusCode': status_code, 'errorMsg': error_msg})
+                raise RetrySync(status_code)
+
             self._storage.save_calendars(response, self._user)
 
             self._storage.log(email_address=self._user.email,
@@ -198,6 +242,7 @@ class CalendarSyncer:
 
             if not page_token:
                 break
+        print(' calendar list fetching function is done')
 
     def sync_calendar_events(self, calendar: GoogleCalendar):
         sync_state = self._storage.get_last_calendar_sync_state(calendar)
@@ -220,6 +265,8 @@ class CalendarSyncer:
 
             if sync_state.get(GoogleCalendar.KV_SYNC_STATE_KEY) == GoogleCalendar.KV_SYNC_STATE_VAL_UNINITIALIZED:
                 query_params['timeMin'] = self.CAL_EVENT_TIME_MIN
+
+            print(" Fetching a page of events for calendar: {}".format(calendar.email_address))
 
             response = service.events().list(**query_params).execute()
 
@@ -245,10 +292,13 @@ class CalendarSyncer:
                 page_token = next_page_token
 
             calendar.sync_detail = sync_detail
+            calendar.last_sync_datetime = timezone.now()
             calendar.save()
 
             if not page_token:
                 break
+
+        print(" Calendar Event Fetching is Done for {}".format(calendar.email_address))
 
 
 class SyncEnvironment:
@@ -280,4 +330,5 @@ class SyncEnvironment:
 
         for calendar in calendars_list:
             user = calendar.sync_user
+            print("Syncing Calendar Events for {}, sync user: {}".format(calendar.email_address, user.email))
             self._syncers[user.email].sync_calendar_events(calendar)
