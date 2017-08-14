@@ -94,4 +94,4 @@ def outreach_redirect(request):
     api_connection.data = resp.text
     api_connection.save()
 
-    redirect(reverse('settings'))
+    return redirect(reverse('settings'))
