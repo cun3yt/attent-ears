@@ -1,10 +1,13 @@
 from urllib.parse import urlencode
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
 from apps.api_connection.models import ApiConnection
 from .models import OutreachAccount, OutreachProspect, OutreachUser, OutreachMailing, OutreachCall
 from visualizer.models import Client
+from django.db.models import Min
+
 
 OUTREACH_CONNECTION = {
     'client_id': '269ba724e0cd0a12ca3b46439c31bb2f13f19cd9c862b965081846d766fe07fa',
@@ -106,37 +109,79 @@ class OutreachSyncer:
         self.client = client
         self.outreach_client = OutreachClient(redirect_uri, api_connection)
 
-    def sync_resource(self, resource_name, sync_resource_batch_fn):
-        iterator = OutreachApiPageIterator()
+    def sync_resource(self, resource_name, sync_resource_batch_fn, offset):
+        iterator = OutreachApiPageIterator(offset=offset)
 
         while True:
             print("Fetching {} resource with offset: {} & limit: {}".format(
                 resource_name, iterator.offset, iterator.limit))
             res = self.outreach_client.get_resource_v2(resource_name, iterator.get_params())
+
             res_json = res.json()
 
             accounts_batch = res_json.get('data', [])
-            sync_resource_batch_fn(accounts_batch)
+
+            print(" Total # of Entries: {}".format(res_json.get('metadata', {}).get('count')))
+
+            sync_resource_batch_fn(accounts_batch, covering_api_offset=iterator.offset)
 
             if not res_json.get('links', {}).get('last', False):
                 break
 
             iterator.next()
 
-    def sync_accounts(self):
-        self.sync_resource('accounts', self._sync_accounts_batch)
+    def sync_accounts(self, offset=0):
+        self.sync_resource('accounts', self._sync_accounts_batch, offset)
 
-    def sync_prospects(self):
-        self.sync_resource('prospects', self._sync_prospects_batch)
+    def sync_prospects(self, offset=0):
+        self.sync_resource('prospects', self._sync_prospects_batch, offset)
 
-    def sync_users(self):
-        self.sync_resource('users', self._sync_users_batch)
+    def sync_users(self, offset=0):
+        self.sync_resource('users', self._sync_users_batch, offset)
 
-    def sync_mailings(self):
-        self.sync_resource('mailings', self._sync_mailings_batch)
+    def sync_mailings(self, offset=0):
+        self.sync_resource('mailings', self._sync_mailings_batch, offset)
 
-    def sync_calls(self):
-        self.sync_resource('calls', self._sync_calls_batch)
+    def sync_calls(self, offset=0):
+        self.sync_resource('calls', self._sync_calls_batch, offset)
+
+    def sync_all_resources(self):
+        """
+        Full Sync For All Resources
+        """
+        self.sync_accounts()
+        self.sync_prospects()
+        self.sync_users()
+        self.sync_mailings()
+        self.sync_calls()
+
+    def sync_all_resources_partial(self):
+        """
+        * Sync'ing only the last items based on offset of the record created recently, e.g. last one month
+        * Sync'ing items based on some criteria, e.g. update time > (now() - 1 month)
+        """
+        self.sync_resource_partial(OutreachAccount, self.sync_accounts)
+        self.sync_resource_partial(OutreachProspect, self.sync_prospects)
+        self.sync_resource_partial(OutreachUser, self.sync_users)
+        self.sync_resource_partial(OutreachMailing, self.sync_mailings)
+        self.sync_resource_partial(OutreachCall, self.sync_calls)
+
+    def sync_resource_partial(self, model, sync_fn):
+        days_diff = 15
+
+        data = model.objects.filter(client=self.client, created_at__gte=(timezone.now() - timedelta(days=days_diff)))\
+            .aggregate(Min('id'))
+        min_id = data.get('id__min')
+
+        offset = 0
+
+        try:
+            account = model.objects.get(id=min_id)
+            offset = account.covering_api_offset
+        except model.DoesNotExist:
+            pass
+
+        sync_fn(offset)
 
     def _log(self, resource):
         pass
@@ -149,7 +194,7 @@ class OutreachSyncer:
         value = dictionary.get(field, None)
         return value if value is not None else default_val
 
-    def _sync_accounts_batch(self, accounts):
+    def _sync_accounts_batch(self, accounts, covering_api_offset):
         for account in accounts:
             attributes = account.get('attributes', {})
 
@@ -164,10 +209,11 @@ class OutreachSyncer:
                     'website_url': self._get_attribute(attributes, 'websiteUrl', ''),
                     'created_at': self._get_attribute(attributes, 'createdAt', None),
                     'updated_at': self._get_attribute(attributes, 'updatedAt', None),
+                    'covering_api_offset': covering_api_offset,
                 }
             )
 
-    def _sync_prospects_batch(self, prospects):
+    def _sync_prospects_batch(self, prospects, covering_api_offset):
         for prospect in prospects:
             atts = prospect.get('attributes')
             relations = prospect.get('relationships')
@@ -193,10 +239,11 @@ class OutreachSyncer:
                     'opted_out_at': self._get_attribute(atts, 'optedOutAt', None),
                     'created_at': self._get_attribute(atts, 'createdAt', None),
                     'updated_at': self._get_attribute(atts, 'updatedAt', None),
+                    'covering_api_offset': covering_api_offset,
                 }
             )
 
-    def _sync_users_batch(self, users):
+    def _sync_users_batch(self, users, covering_api_offset):
         for user in users:
             atts = user.get('attributes')
             outreach_user, _ = OutreachUser.objects.update_or_create(
@@ -207,10 +254,11 @@ class OutreachSyncer:
                     'first_name': self._get_attribute(atts, 'firstName', ''),
                     'last_name': self._get_attribute(atts, 'lastName', ''),
                     'username': self._get_attribute(atts, 'username', ''),
+                    'covering_api_offset': covering_api_offset,
                 }
             )
 
-    def _sync_mailings_batch(self, mailings):
+    def _sync_mailings_batch(self, mailings, covering_api_offset):
         for mailing in mailings:
             atts = mailing.get('attributes')
             relations = mailing.get('relationships')
@@ -234,10 +282,11 @@ class OutreachSyncer:
                     'scheduled_at': self._get_attribute(atts, 'scheduledAt', None),
                     'created_at': self._get_attribute(atts, 'createdAt', None),
                     'updated_at': self._get_attribute(atts, 'updatedAt', None),
+                    'covering_api_offset': covering_api_offset,
                 }
             )
 
-    def _sync_calls_batch(self, calls):
+    def _sync_calls_batch(self, calls, covering_api_offset):
         for call in calls:
             atts = call.get('attributes')
             relations = call.get('relationships')
@@ -258,5 +307,6 @@ class OutreachSyncer:
                     'record_url': self._get_attribute(atts, 'recordUrl', None),
                     'created_at': self._get_attribute(atts, 'createdAt', None),
                     'updated_at': self._get_attribute(atts, 'updatedAt', None),
+                    'covering_api_offset': covering_api_offset,
                 }
             )
