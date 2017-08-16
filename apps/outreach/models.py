@@ -18,7 +18,9 @@ class OutreachAccount(TimeStampedMixin):
     domain = models.CharField(max_length=255, blank=True, default='')
     website_url = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(db_index=True, null=True, blank=True)
+
+    covering_api_offset = models.IntegerField(default=0)
 
 
 class OutreachProspect(TimeStampedMixin):
@@ -43,7 +45,9 @@ class OutreachProspect(TimeStampedMixin):
     engaged_at = models.DateTimeField(null=True, blank=True, default=None)
     opted_out_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(db_index=True, null=True, blank=True)
+
+    covering_api_offset = models.IntegerField(default=0)
 
 
 class OutreachUser(TimeStampedMixin):
@@ -57,6 +61,8 @@ class OutreachUser(TimeStampedMixin):
     first_name = models.CharField(max_length=30, blank=True, default='')
     last_name = models.CharField(max_length=30, blank=True, default='')
     username = models.CharField(max_length=30, blank=True, default='')
+
+    covering_api_offset = models.IntegerField(default=0)
 
 
 class OutreachMailing(TimeStampedMixin):
@@ -84,7 +90,9 @@ class OutreachMailing(TimeStampedMixin):
     scheduled_at = models.DateTimeField(null=True, blank=True, default=None)
 
     created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(db_index=True, null=True, blank=True)
+
+    covering_api_offset = models.IntegerField(default=0)
 
 
 class OutreachCall(TimeStampedMixin):
@@ -105,4 +113,6 @@ class OutreachCall(TimeStampedMixin):
     record_url = models.CharField(max_length=2000, blank=True, default=None, null=True)
 
     created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(db_index=True, null=True, blank=True)
+
+    covering_api_offset = models.IntegerField(default=0)
