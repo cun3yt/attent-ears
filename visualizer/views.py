@@ -2,8 +2,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.urls import reverse
-from django.http import HttpResponse
-from ears.api_connection import outreach_connect_url, outreach_exchange_for_access_token
+from apps.outreach.syncer import outreach_connect_url, outreach_exchange_for_access_token
 from apps.api_connection.models import ApiConnection
 
 
@@ -94,4 +93,4 @@ def outreach_redirect(request):
     api_connection.data = resp.text
     api_connection.save()
 
-    redirect(reverse('settings'))
+    return redirect(reverse('settings'))
