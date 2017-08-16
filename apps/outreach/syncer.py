@@ -116,6 +116,9 @@ class OutreachSyncer:
             res_json = res.json()
 
             accounts_batch = res_json.get('data', [])
+
+            print(" Total # of Entries: {}".format(res_json.get('metadata', {}).get('count')))
+
             sync_resource_batch_fn(accounts_batch)
 
             if not res_json.get('links', {}).get('last', False):
