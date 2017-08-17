@@ -92,7 +92,7 @@ class OutreachClient:
                             params=params, headers=self.headers, **kwargs)
 
 
-class OutreachApiPageIterator:
+class OutreachApiPageIterator:      # Outreach API doesn't allow offset > 10K
     def __init__(self, offset=0, limit=100):
         self.offset = offset
         self.limit = limit
@@ -100,8 +100,15 @@ class OutreachApiPageIterator:
     def get_params(self):
         return {'page[offset]': self.offset, 'page[limit]': self.limit}
 
-    def next(self):
-        self.offset += self.limit
+    def next(self, alternative_offset=0):
+        self.offset = max(self.offset + self.limit, alternative_offset)
+
+
+class OutreachApiRangeIterator(OutreachApiPageIterator):
+    def get_params(self):
+        lower_limit = self.offset
+        upper_limit = '99999999'
+        return {'filter[id]': '{}..{}'.format(lower_limit, upper_limit), 'page[limit]': self.limit}
 
 
 class OutreachSyncer:
@@ -109,8 +116,16 @@ class OutreachSyncer:
         self.client = client
         self.outreach_client = OutreachClient(redirect_uri, api_connection)
 
+    def test(self):
+        iterator = OutreachApiRangeIterator(offset=11000)
+        res = self.outreach_client.get_resource_v2('accounts', params=iterator.get_params())
+        import ipdb
+        ipdb.set_trace()
+        return res
+        # return self.outreach_client.get_resource_v2('calls', params={'filter[id]': '1001..1002'})
+
     def sync_resource(self, resource_name, sync_resource_batch_fn, offset):
-        iterator = OutreachApiPageIterator(offset=offset)
+        iterator = OutreachApiRangeIterator(offset=offset)
 
         while True:
             print("Fetching {} resource with offset: {} & limit: {}".format(
@@ -121,14 +136,21 @@ class OutreachSyncer:
 
             accounts_batch = res_json.get('data', [])
 
-            print(" Total # of Entries: {}".format(res_json.get('metadata', {}).get('count')))
+            total_num_entries = res_json.get('metadata', {}).get('count')
+
+            print(" Total # of Entries: {}, In this batch: {}".format(total_num_entries, len(accounts_batch)))
+
+            if not total_num_entries:
+                break
 
             sync_resource_batch_fn(accounts_batch, covering_api_offset=iterator.offset)
 
-            if not res_json.get('links', {}).get('last', False):
-                break
+            try:
+                max_id = accounts_batch[-1].get('id', 0)
+            except IndexError:
+                max_id = -1
 
-            iterator.next()
+            iterator.next(max_id + 1)
 
     def sync_accounts(self, offset=0):
         self.sync_resource('accounts', self._sync_accounts_batch, offset)
@@ -182,12 +204,6 @@ class OutreachSyncer:
             pass
 
         sync_fn(offset)
-
-    def _log(self, resource):
-        pass
-
-    def test(self):
-        return self.outreach_client.get_resource_v2('calls', params={'page[limit]': 2, 'page[offset]': 0})
 
     @staticmethod
     def _get_attribute(dictionary, field, default_val):
