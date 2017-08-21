@@ -33,6 +33,7 @@ class OutreachProspect(TimeStampedMixin):
     outreach_account_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)
     outreach_owner_user_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)
 
+    all_email_addresses = models.TextField(default='')
     engaged_score = models.IntegerField(blank=True, default=None, null=True)
     first_name = models.CharField(max_length=20, blank=True, default='')
     last_name = models.CharField(max_length=20, blank=True, default='')
@@ -48,6 +49,18 @@ class OutreachProspect(TimeStampedMixin):
     updated_at = models.DateTimeField(db_index=True, null=True, blank=True)
 
     covering_api_offset = models.IntegerField(default=0)
+
+
+class OutreachProspectV1(TimeStampedMixin):
+    class Meta:
+        db_table = 'outreach_prospect_v1'
+
+    client = models.ForeignKey(Client, null=True)
+
+    outreach_id = models.IntegerField(db_index=True)
+    email_address = models.CharField(max_length=255, blank=True, default='')
+    phone_number_personal = models.CharField(max_length=20, blank=True, default='')
+    phone_number_work = models.CharField(max_length=20, blank=True, default='')
 
 
 class OutreachUser(TimeStampedMixin):
