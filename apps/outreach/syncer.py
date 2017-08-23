@@ -3,7 +3,7 @@ import requests
 import json
 from datetime import datetime, timedelta
 from django.utils import timezone
-from apps.api_connection.models import ApiConnection
+from apps.api_connection.models import ApiConnection, ApiSyncStatus, NoApiSyncStatusError
 from .models import OutreachAccount, OutreachProspect, OutreachProspectV1, OutreachUser, OutreachMailing, OutreachCall
 from visualizer.models import Client
 from django.db.models import Min
@@ -106,12 +106,13 @@ class OutreachClient:
 
 
 class OutreachApiPageIterator:      # Outreach API doesn't allow offset > 10K
-    def __init__(self, offset=0, limit=100):
+    def __init__(self, offset=0, limit=100, time_limit=None):
         self.offset = offset
         self.limit = limit
+        self.time_limit = time_limit
 
     def get_params(self):
-        return {'page[offset]': self.offset, 'page[limit]': self.limit}
+        raise Exception("Not Implemented")
 
     def next(self, alternative_offset=0):
         self.offset = max(self.offset + self.limit, alternative_offset)
@@ -121,36 +122,69 @@ class OutreachApiRangeIterator(OutreachApiPageIterator):
     def get_params(self):
         lower_limit = self.offset
         upper_limit = '99999999'
-        return {'filter[id]': '{}..{}'.format(lower_limit, upper_limit), 'page[limit]': self.limit}
+        params = {'filter[id]': '{}..{}'.format(lower_limit, upper_limit), 'page[limit]': self.limit}
+        if self.time_limit is not None:
+            params['filter[updatedAt]'] = "{}..inf".format(self.time_limit)
+        return params
+
+    def is_end(self, total_num_entries, num_in_batch):
+        return not total_num_entries
 
 
 class OutreachApiV1PageIterator(OutreachApiPageIterator):
     def get_params(self):
         page_size = self.limit
         page_number = math.ceil((self.offset+1)/page_size)
-        return {'page[size]': page_size, 'page[number]': page_number}
+        params = {'page[size]': page_size, 'page[number]': page_number}
+        if self.time_limit is not None:
+            params['filter[metadata/updated/after]'] = "{}".format(self.time_limit)
+        return params
 
     def is_end(self, total):
         return total < self.offset
 
 
+class OutreachApiTimeLimitIterator(OutreachApiPageIterator):
+    def get_params(self):
+        return {
+            'filter[updatedAt]': '{}..inf'.format(self.time_limit),
+            'page[limit]': self.limit,
+            'page[offset]': self.offset,
+        }
+
+    def next(self, alternative_offset=0):
+        self.offset = self.offset + self.limit
+
+    def is_end(self, total_num_entries, num_in_batch):
+        return not num_in_batch
+
+
 class OutreachSyncer:
     def __init__(self, client: Client, redirect_uri, api_connection: ApiConnection):
         self.client = client
-        self.outreach_client = OutreachClient(redirect_uri, api_connection)
+        self.api_connection = api_connection
+        self.outreach_client = OutreachClient(redirect_uri, self.api_connection)
 
     def test(self):
-        iterator = OutreachApiRangeIterator(offset=0)
         import ipdb
         ipdb.set_trace()
 
+        iterator = OutreachApiV1PageIterator(time_limit='2017-08-20')
         res_json = self._fetch_resource_from_outreach('v1', 'prospects', iterator)
-        print(self._fetch_resource_from_outreach.retry.statistics)
-        res_json = self._fetch_resource_from_outreach('v2', 'prospects', iterator)
-        print(self._fetch_resource_from_outreach.retry.statistics)
+        print(res_json['meta']['results']['total'])
 
-        res = self.outreach_client.get_resource_v2('accounts', params=iterator.get_params())
-        return res
+        iterator = OutreachApiV1PageIterator(time_limit='2017-08-20T00:0013:00:30+00')
+        res_json = self._fetch_resource_from_outreach('v1', 'prospects', iterator)
+        print(res_json['meta']['results']['total'])
+
+        iterator = OutreachApiV1PageIterator(time_limit='2017-08-20T23:59')
+        res_json = self._fetch_resource_from_outreach('v1', 'prospects', iterator)
+        print(res_json['meta']['results']['total'])
+
+        # iterator = OutreachApiRangeIterator(offset=0)
+        #
+        # res_json = self._fetch_resource_from_outreach('v2', 'prospects', iterator)
+        # print(self._fetch_resource_from_outreach.retry.statistics)
 
     @retry(wait=wait_exponential(multiplier=1, max=10), stop=stop_after_attempt(10))
     def _fetch_resource_from_outreach(self, api_version, resource_name, iterator):
@@ -160,8 +194,8 @@ class OutreachSyncer:
             raise Exception("Wrong API version is provided, possible values: {}".format(
                 ', '.join(possible_api_versions)))
 
-        print("Fetching {} resource from API {} with offset: {} & limit: {}".format(
-            resource_name, api_version, iterator.offset, iterator.limit))
+        print("Fetching {} resource from API {} with offset: {}, limit: {} & time_limit: {}".format(
+            resource_name, api_version, iterator.offset, iterator.limit, iterator.time_limit))
 
         fetch_fn = self.outreach_client.get_resource_v1 if api_version == 'v1' else self.outreach_client.get_resource_v2
 
@@ -176,8 +210,11 @@ class OutreachSyncer:
 
         return res_json
 
-    def sync_resource(self, resource_name, sync_resource_batch_fn, offset=0):
-        iterator = OutreachApiRangeIterator(offset=offset)
+    def sync_resource(self, resource_name, sync_resource_batch_fn, offset, time_limit=None):
+        if time_limit:
+            iterator = OutreachApiTimeLimitIterator(offset=offset, time_limit=time_limit)
+        else:
+            iterator = OutreachApiRangeIterator(offset=offset)
 
         while True:
             res_json = self._fetch_resource_from_outreach('v2', resource_name, iterator)
@@ -185,10 +222,11 @@ class OutreachSyncer:
 
             resource_instances = res_json.get('data', [])
             total_num_entries = res_json.get('metadata', {}).get('count')
+            batch_num_entries = len(resource_instances)
 
-            print(" Total # of Entries: {}, In this batch: {}".format(total_num_entries, len(resource_instances)))
+            print(" Total # of Entries: {}, In this batch: {}".format(total_num_entries, batch_num_entries))
 
-            if not total_num_entries:
+            if iterator.is_end(total_num_entries=total_num_entries, num_in_batch=batch_num_entries):
                 break
 
             sync_resource_batch_fn(resource_instances, covering_api_offset=iterator.offset)
@@ -200,8 +238,11 @@ class OutreachSyncer:
 
             iterator.next(max_id + 1)
 
-    def sync_resource_api_v1(self, resource_name, sync_resources_batch_fn, offset=0):
-        iterator = OutreachApiV1PageIterator(offset=offset, limit=50)
+    def sync_resource_api_v1(self, resource_name, sync_resources_batch_fn, offset, time_limit=None):
+        from datetime import timedelta
+        time_lower_limit = (time_limit - timedelta(days=1)).date()
+
+        iterator = OutreachApiV1PageIterator(offset=offset, limit=50, time_limit=time_lower_limit)
 
         while True:
             res_json = self._fetch_resource_from_outreach('v1', resource_name, iterator)
@@ -218,23 +259,47 @@ class OutreachSyncer:
             sync_resources_batch_fn(resource_instances)
             iterator.next()
 
-    def sync_accounts(self, offset=0):
-        self.sync_resource('accounts', self._sync_accounts_batch, offset)
+    def sync_accounts(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachAccount.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource('accounts', self._sync_accounts_batch, offset, time_limit)
+        sync_status.add_end()
 
-    def sync_prospects(self, offset=0):
-        self.sync_resource('prospects', self._sync_prospects_batch, offset)
+    def sync_prospects(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachProspect.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource('prospects', self._sync_prospects_batch, offset, time_limit)
+        sync_status.add_end()
 
-    def sync_prospects_api_v1(self, offset=0):
-        self.sync_resource_api_v1('prospects', self._sync_prospects_v1_batch, offset)
+    def sync_prospects_api_v1(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachProspectV1.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource_api_v1('prospects', self._sync_prospects_v1_batch, offset, time_limit)
+        sync_status.add_end()
 
-    def sync_users(self, offset=0):
-        self.sync_resource('users', self._sync_users_batch, offset)
+    def sync_users(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachUser.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource('users', self._sync_users_batch, offset, time_limit)
+        sync_status.add_end()
 
-    def sync_mailings(self, offset=0):
-        self.sync_resource('mailings', self._sync_mailings_batch, offset)
+    def sync_mailings(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachMailing.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource('mailings', self._sync_mailings_batch, offset, time_limit)
+        sync_status.add_end()
 
-    def sync_calls(self, offset=0):
-        self.sync_resource('calls', self._sync_calls_batch, offset)
+    def sync_calls(self, offset=0, time_limit=None):
+        sync_status = ApiSyncStatus.add_sync_status(api_connection=self.api_connection,
+                                                    resource=OutreachCall.RESOURCE_NAME,
+                                                    extra_data={'start_offset': offset})
+        self.sync_resource('calls', self._sync_calls_batch, offset, time_limit)
+        sync_status.add_end()
 
     def sync_all_resources(self):
         """
@@ -252,30 +317,21 @@ class OutreachSyncer:
         * Sync'ing only the last items based on offset of the record created recently, e.g. last one month
         * Sync'ing items based on some criteria, e.g. update time > (now() - 1 month)
         """
-        # self.sync_resource_partial(OutreachAccount, self.sync_accounts)
-        # self.sync_resource_partial(OutreachProspect, self.sync_prospects)
-        # self.sync_resource_partial(OutreachUser, self.sync_users)
-        # self.sync_resource_partial(OutreachMailing, self.sync_mailings)
-        # self.sync_resource_partial(OutreachCall, self.sync_calls)
+        self.sync_resource_partial(OutreachAccount, self.sync_accounts)
+        self.sync_resource_partial(OutreachProspect, self.sync_prospects)
+        self.sync_resource_partial(OutreachProspectV1, self.sync_prospects_api_v1)
+        self.sync_resource_partial(OutreachUser, self.sync_users)
+        self.sync_resource_partial(OutreachMailing, self.sync_mailings)
+        self.sync_resource_partial(OutreachCall, self.sync_calls)
 
     def sync_resource_partial(self, model, sync_fn):
-        raise Exception("Not Implemented")
+        try:
+            sync_status = ApiSyncStatus.get_last_completed_sync(api_connection=self.api_connection,
+                                                                resource=model.RESOURCE_NAME)
+            sync_fn(offset=0, time_limit=sync_status.start)
 
-        # days_diff = 15
-        #
-        # data = model.objects.filter(client=self.client, created_at__gte=(timezone.now() - timedelta(days=days_diff)))\
-        #     .aggregate(Min('id'))
-        # min_id = data.get('id__min')
-        #
-        # offset = 0
-        #
-        # try:
-        #     account = model.objects.get(id=min_id)
-        #     offset = account.covering_api_offset
-        # except model.DoesNotExist:
-        #     pass
-        #
-        # sync_fn(offset)
+        except NoApiSyncStatusError:
+            print("Cannot do partial sync, consider doing full sync!")
 
     @staticmethod
     def _get_attribute(dictionary, field, default_val):

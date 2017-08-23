@@ -8,6 +8,8 @@ class OutreachAccount(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_account'
 
+    RESOURCE_NAME = 'account'
+
     client = models.ForeignKey(Client, null=True)
 
     outreach_id = models.IntegerField(db_index=True)
@@ -26,6 +28,8 @@ class OutreachAccount(TimeStampedMixin):
 class OutreachProspect(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_prospect'
+
+    RESOURCE_NAME = 'prospect'
 
     client = models.ForeignKey(Client, null=True)
 
@@ -55,6 +59,8 @@ class OutreachProspectV1(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_prospect_v1'
 
+    RESOURCE_NAME = 'prospect_v1'
+
     client = models.ForeignKey(Client, null=True)
 
     outreach_id = models.IntegerField(db_index=True)
@@ -66,6 +72,8 @@ class OutreachProspectV1(TimeStampedMixin):
 class OutreachUser(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_user'
+
+    RESOURCE_NAME = 'user'
 
     client = models.ForeignKey(Client)
 
@@ -81,6 +89,8 @@ class OutreachUser(TimeStampedMixin):
 class OutreachMailing(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_mailing'
+
+    RESOURCE_NAME = 'mailing'
 
     client = models.ForeignKey(Client)
 
@@ -111,6 +121,8 @@ class OutreachMailing(TimeStampedMixin):
 class OutreachCall(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_call'
+
+    RESOURCE_NAME = 'call'
 
     client = models.ForeignKey(Client)
     outreach_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)
