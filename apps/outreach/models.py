@@ -8,6 +8,8 @@ class OutreachAccount(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_account'
 
+    RESOURCE_NAME = 'account'
+
     client = models.ForeignKey(Client, null=True)
 
     outreach_id = models.IntegerField(db_index=True)
@@ -27,12 +29,15 @@ class OutreachProspect(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_prospect'
 
+    RESOURCE_NAME = 'prospect'
+
     client = models.ForeignKey(Client, null=True)
 
     outreach_id = models.IntegerField(db_index=True)
     outreach_account_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)
     outreach_owner_user_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)
 
+    all_email_addresses = models.TextField(default='')
     engaged_score = models.IntegerField(blank=True, default=None, null=True)
     first_name = models.CharField(max_length=20, blank=True, default='')
     last_name = models.CharField(max_length=20, blank=True, default='')
@@ -50,9 +55,25 @@ class OutreachProspect(TimeStampedMixin):
     covering_api_offset = models.IntegerField(default=0)
 
 
+class OutreachProspectV1(TimeStampedMixin):
+    class Meta:
+        db_table = 'outreach_prospect_v1'
+
+    RESOURCE_NAME = 'prospect_v1'
+
+    client = models.ForeignKey(Client, null=True)
+
+    outreach_id = models.IntegerField(db_index=True)
+    email_address = models.CharField(max_length=255, blank=True, default='')
+    phone_number_personal = models.CharField(max_length=20, blank=True, default='')
+    phone_number_work = models.CharField(max_length=20, blank=True, default='')
+
+
 class OutreachUser(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_user'
+
+    RESOURCE_NAME = 'user'
 
     client = models.ForeignKey(Client)
 
@@ -68,6 +89,8 @@ class OutreachUser(TimeStampedMixin):
 class OutreachMailing(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_mailing'
+
+    RESOURCE_NAME = 'mailing'
 
     client = models.ForeignKey(Client)
 
@@ -98,6 +121,8 @@ class OutreachMailing(TimeStampedMixin):
 class OutreachCall(TimeStampedMixin):
     class Meta:
         db_table = 'outreach_call'
+
+    RESOURCE_NAME = 'call'
 
     client = models.ForeignKey(Client)
     outreach_id = models.IntegerField(db_index=True, blank=True, default=None, null=True)

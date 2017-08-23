@@ -1,10 +1,10 @@
 from visualizer.models import User
 from django.urls import reverse
-
+from apps.outreach.syncer import OutreachSyncer
 import traceback
 import sys
 
-from apps.outreach.syncer import OutreachSyncer
+ALLOWED_FNS = ['full_sync', 'partial_sync', 'test_sync']
 
 
 def _setup_syncer(user: User):
@@ -24,8 +24,14 @@ def partial_sync(syncer: OutreachSyncer):
     syncer.sync_all_resources_partial()
 
 
+def test_sync(syncer: OutreachSyncer):
+    print("Running Test Sync")
+    syncer.test()
+
+
 def _print_usage_and_terminate():
-    print('usage: <script_name> --script-args <type of extract: "full" "partial">')
+    allowed_functions = '"{}"'.format('", "'.join(ALLOWED_FNS))
+    print('usage: <script_name> --script-args <type of extract: {}>'.format(allowed_functions))
     exit()
 
 
@@ -37,12 +43,13 @@ def run(*args):
         if len(args) < 1:
             _print_usage_and_terminate()
 
-        if args[0] == 'full':
-            full_sync(syncer)
-        elif args[0] == 'partial':
-            partial_sync(syncer)
-        else:
+        fn_name = args[0]
+
+        if fn_name not in ALLOWED_FNS:
             _print_usage_and_terminate()
+
+        fn = globals()[fn_name]
+        fn(syncer)
 
     except Exception as ex:
         print("Log This: Unexpected Exception Exception Details: {}".format(ex))
