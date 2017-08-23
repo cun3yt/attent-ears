@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'google_calendar',
     'social_django',
     'apps.api_connection',
+    'apps.outreach',
     'visualizer',
     'attent_calendar',
     'sslserver',

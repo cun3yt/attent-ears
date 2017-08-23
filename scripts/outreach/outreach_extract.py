@@ -1,43 +1,58 @@
 from visualizer.models import User
-from ears.api_connection import outreach_refresh_access_token_if_needed
 from django.urls import reverse
-
+from apps.outreach.syncer import OutreachSyncer
 import traceback
 import sys
-import json
-import requests
+
+ALLOWED_FNS = ['full_sync', 'partial_sync', 'test_sync']
 
 
-user = User.objects.get(id=3)
-conn_set = user.api_connections.filter(type='outreach')
-connection = conn_set[0]
-
-try:
-    import ipdb
-    ipdb.set_trace()
-
+def _setup_syncer(user: User):
     redirect_uri = 'https://cuneyt-dev-attent-ears.herokuapp.com' + reverse('outreach-redirect')
-    con = outreach_refresh_access_token_if_needed(connection, redirect_uri)
-    data = json.loads(con.data)
-    headers = {'Authorization': 'Bearer {}'.format(data['access_token'])}
-    outreach_resource = 'https://api.outreach.io/1.0/{}'
+    conn_set = user.api_connections.filter(type='outreach')
+    connection = conn_set[0]
+    return OutreachSyncer(user.client, redirect_uri, connection)
 
-    response = requests.get(outreach_resource.format('accounts'), headers=headers)
-    response = requests.get(outreach_resource.format('activities?filter[prospect/id]=51628'), headers=headers)
-    response = requests.get(outreach_resource.format('calls'), headers=headers)
-    response = requests.get(outreach_resource.format('call_dispositions'), headers=headers)
-    response = requests.get(outreach_resource.format('call_purposes'), headers=headers)
-    response = requests.get(outreach_resource.format('info'), headers=headers)
-    response = requests.get(outreach_resource.format('mailings/65349'), headers=headers)
-    response = requests.get(outreach_resource.format('plugins'), headers=headers)           # authentication needed
-    # ^^^^ the documentation resource wrong? http://bit.ly/2urablf ^^^^
-    response = requests.get(outreach_resource.format('prospects?page[size]=10'), headers=headers)
-    response = requests.get(outreach_resource.format('sequences?page[size]=150'), headers=headers)
-    response = requests.get(outreach_resource.format('sequences?id=288'), headers=headers)
-    response = requests.get(outreach_resource.format('users'), headers=headers)
 
-except Exception as ex:
-    print("Log This: Unexpected Exception Exception Details: {}".format(ex))
-    print("-"*60)
-    traceback.print_exc(file=sys.stdout)
-    print("-"*60)
+def full_sync(syncer: OutreachSyncer):
+    print("Running Full Sync")
+    syncer.sync_all_resources()
+
+
+def partial_sync(syncer: OutreachSyncer):
+    print("Running Partial Sync")
+    syncer.sync_all_resources_partial()
+
+
+def test_sync(syncer: OutreachSyncer):
+    print("Running Test Sync")
+    syncer.test()
+
+
+def _print_usage_and_terminate():
+    allowed_functions = '"{}"'.format('", "'.join(ALLOWED_FNS))
+    print('usage: <script_name> --script-args <type of extract: {}>'.format(allowed_functions))
+    exit()
+
+
+def run(*args):
+    try:
+        user = User.objects.get(id=1)
+        syncer = _setup_syncer(user)
+
+        if len(args) < 1:
+            _print_usage_and_terminate()
+
+        fn_name = args[0]
+
+        if fn_name not in ALLOWED_FNS:
+            _print_usage_and_terminate()
+
+        fn = globals()[fn_name]
+        fn(syncer)
+
+    except Exception as ex:
+        print("Log This: Unexpected Exception Exception Details: {}".format(ex))
+        print("-"*60)
+        traceback.print_exc(file=sys.stdout)
+        print("-"*60)
