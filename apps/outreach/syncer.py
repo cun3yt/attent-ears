@@ -2,11 +2,9 @@ from urllib.parse import urlencode
 import requests
 import json
 from datetime import datetime, timedelta
-from django.utils import timezone
 from apps.api_connection.models import ApiConnection, ApiSyncStatus, NoApiSyncStatusError
 from .models import OutreachAccount, OutreachProspect, OutreachProspectV1, OutreachUser, OutreachMailing, OutreachCall
 from visualizer.models import Client
-from django.db.models import Min
 import math
 from tenacity import retry, wait_exponential, stop_after_attempt
 
@@ -226,6 +224,9 @@ class OutreachSyncer:
 
             print(" Total # of Entries: {}, In this batch: {}".format(total_num_entries, batch_num_entries))
 
+            if total_num_entries is None:
+                print("Total number is None, printing the content of API response: {}".format(res_json))
+
             if iterator.is_end(total_num_entries=total_num_entries, num_in_batch=batch_num_entries):
                 break
 
@@ -239,8 +240,7 @@ class OutreachSyncer:
             iterator.next(max_id + 1)
 
     def sync_resource_api_v1(self, resource_name, sync_resources_batch_fn, offset, time_limit=None):
-        from datetime import timedelta
-        time_lower_limit = (time_limit - timedelta(days=1)).date()
+        time_lower_limit = (time_limit - timedelta(days=1)).date()  # Due to API limitation on timezone, extended time
 
         iterator = OutreachApiV1PageIterator(offset=offset, limit=50, time_limit=time_lower_limit)
 
