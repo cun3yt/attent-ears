@@ -57,7 +57,7 @@ def settings(request):
     current_outreach_connection = None
     try:
         current_outreach_connection = request.user.api_connections.get(type='outreach')
-    except Exception as e:
+    except Exception:
         pass
 
     current_salesforce_connection = None
@@ -109,10 +109,9 @@ def outreach_redirect(request):
     redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
     resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
 
-    api_connection, _ = ApiConnection.objects.get_or_create(type='outreach', user=request.user)
-    api_connection.data = resp.text
-    api_connection.save()
-
+    ApiConnection.objects.update_or_create(type='outreach',
+                                           user=request.user,
+                                           defaults={'data': resp.text})
     return redirect(reverse('settings'))
 
 
@@ -128,5 +127,4 @@ def salesforce_redirect(request):
     ApiConnection.objects.update_or_create(type='salesforce',
                                            user=request.user,
                                            defaults={'data': resp.text})
-
     return redirect(reverse('settings'))
