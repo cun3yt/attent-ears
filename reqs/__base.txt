@@ -11,3 +11,5 @@ gunicorn==19.7.1
 django-sslserver==0.20
 requests==2.18.1
 tenacity==4.4.0
+salesforce-bulk==1.1.0
+simple-salesforce==0.73.0
