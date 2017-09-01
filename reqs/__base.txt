@@ -2,7 +2,6 @@ Django==1.11.3
 psycopg2==2.7.1
 email_split==1.0.0
 social-auth-app-django==1.2.0
-celery==4.0.2
 google-api-python-client==1.6.2
 beautifulsoup4==4.6.0
 django-model-utils==3.0.0
@@ -11,5 +10,6 @@ gunicorn==19.7.1
 django-sslserver==0.20
 requests==2.18.1
 tenacity==4.4.0
-salesforce-bulk==1.1.0
-simple-salesforce==0.73.0
+simple_salesforce==0.73.0
+daiquiri==1.2.2
+https://github.com/heroku/salesforce-bulk/archive/v2.0.0dev6.zip#egg=salesforce-bulk==2.0.0dev6

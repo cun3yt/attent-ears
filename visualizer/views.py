@@ -111,7 +111,7 @@ def outreach_redirect(request):
 
     ApiConnection.objects.update_or_create(type='outreach',
                                            user=request.user,
-                                           defaults={'data': resp.text})
+                                           defaults={'data': resp.text})    # TODO: must be resp.json()
     return redirect(reverse('settings'))
 
 
@@ -126,5 +126,5 @@ def salesforce_redirect(request):
 
     ApiConnection.objects.update_or_create(type='salesforce',
                                            user=request.user,
-                                           defaults={'data': resp.text})
+                                           defaults={'data': resp.json()})
     return redirect(reverse('settings'))
