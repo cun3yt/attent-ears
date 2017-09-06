@@ -12,4 +12,6 @@ requests==2.18.1
 tenacity==4.4.0
 simple_salesforce==0.73.0
 daiquiri==1.2.2
-https://github.com/heroku/salesforce-bulk/archive/v2.0.0dev6.zip#egg=salesforce-bulk==2.0.0dev6
+salesforce-bulk==2.0.0
+cached_property==1.3.0
+stringcase==1.2.0

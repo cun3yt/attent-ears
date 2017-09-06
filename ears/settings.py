@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'visualizer',
     'attent_calendar',
     'sslserver',
+    'stringcase',
 ]
 
 MIDDLEWARE = [

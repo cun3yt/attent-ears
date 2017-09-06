@@ -4,10 +4,16 @@ from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceExpiredSession
 from tenacity import retry, stop_after_attempt
 from apps.salesforce.authentication import refresh_access_token
+from apps.salesforce.models import SalesforceAccount
 from apps.api_connection.models import ApiConnection
 import daiquiri
 import logging
 from salesforce_bulk import SalesforceBulk
+from cached_property import cached_property
+
+import unicodecsv
+import sys
+import json
 
 daiquiri.setup(level=logging.WARNING)
 logger = daiquiri.getLogger()
@@ -83,14 +89,27 @@ def get_salesforce_entity(salesforce, entity_name):
 
 
 def describe_entity(entity):
-    logger.warning("Meta Data for {}".format(entity.name))
-    for k, v in entity.metadata()['objectDescribe'].items():
-        print("{}: {}".format(k, v))
+    # logger.warning("Meta Data for {}".format(entity.name))
+    # for k, v in entity.metadata()['objectDescribe'].items():
+    #     print("{}: {}".format(k, v))
+
+
+    # logger.warning("Entity Description")
+    # for k, v in entity.describe().items():
+    #     print("{}:".format(k))
+    #     print(json.dumps(v, indent=2, sort_keys=True))
+    #     print("-----\n-----\n-----\n")
 
     logger.warning("Fields of {}".format(entity.name))
-    for field in entity.describe()['fields']:
-        print("{}".format(field['name']))
 
+    vals = [(field['name'], field['type']) for field in entity.describe()['fields']]
+
+    agg = {}
+    for (name, t) in vals:
+        agg[t] = agg.get(t, [])
+        agg[t].append(name)
+
+    print(json.dumps(agg, indent=2, sort_keys=True))
     return None
 
 
@@ -99,35 +118,44 @@ class EntityExtractor:
         self.syncer = syncer
         self.entity = entity
 
-    def fetch_and_save(self):
-        import ipdb
-        ipdb.set_trace()
-
-        job = self.syncer.bulk.create_queryall_job(self.get_entity_name())
+    def fetch(self):
+        job = self.syncer.bulk.create_queryall_job(self.entity.name)
         query = self._build_bulk_query()
         batch = self.syncer.bulk.query(job, query)
         self.syncer.bulk.close_job(job)
 
-        while not self.syncer.bulk.is_batch_done(job, batch):
+        while not self.syncer.bulk.is_batch_done(batch):
             sleep(10)
 
-        for result in self.syncer.bulk.get_all_results_from_batch(batch):
-            for row in result:
+        return self.syncer.bulk.get_all_results_for_query_batch(batch)
+
+    def save_results(self, result_iterator):
+        for result in result_iterator:
+            reader = unicodecsv.DictReader(result, encoding='utf-8')
+            for row in reader:
                 self._save_as_model(row)
 
     def _save_as_model(self, row):
-        logger.warning("Needs to be saved as {} with user {}: {}".format(
-            self.get_model_class(), self.syncer.user.id, row))
+        logger.warning("SAVE WITH: ")
+        print(json.dumps(dict(row), indent=2, sort_keys=True))
+
+        save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
+        save_fn(row, self.syncer.user.client)
 
     def _build_bulk_query(self):
         select_section = ",".join(self.get_fields_to_fetch())
-        return "select {} from {}".format(select_section, self.get_entity_name())
+        return "select {} from {}".format(select_section, self.entity.name)
+
+    @staticmethod
+    def get_model_class_method(model_name, method_name):
+        klass = getattr(sys.modules[__name__], model_name)
+        return getattr(klass, method_name)
 
     def get_fields_to_fetch(self):
-        raise NotImplementedError
-
-    def get_entity_name(self):
-        raise NotImplementedError
+        all_fields = self.entity.describe()['fields']
+        return [field['name']
+                for field in all_fields
+                if field['type'] not in ['address', 'geolocation']]
 
     def get_model_class(self):
         raise NotImplementedError
@@ -143,20 +171,31 @@ class AccountExtractor(EntityExtractor):
         super(AccountExtractor, self).__init__(syncer=syncer,
                                                entity=account_entity)
 
-    def get_fields_to_fetch(self):
-        return ['Id', 'Name', 'OwnerId', 'AnnualRevenue',
-                'BillingAddress', 'NumberOfEmployees',
-                'Industry', 'Type', 'Website',
-                'Site', 'AccountSource', 'CreatedBy',
-                'Jigsaw', 'Description', 'Fax', 'LastModifiedBy',
-                'Ownership', 'Parent', 'Phone', 'Rating',
-                'ShippingAddress', 'Sic', 'SicDesc', 'TickerSymbol']
-
-    def get_entity_name(self):
-        return 'Account'
-
     def get_model_class(self):
         return 'SalesforceAccount'
+
+
+# Path 1:
+#   * Fetch the entity description (field definitions)
+#   * Save entity description in DB
+#   * Construct query for all fields
+#   * Save the result as CSV
+#
+# Path 2:
+#   * Fetch the entity description (field definitions)
+#   * Save entity description in DB
+#   * Construct query for standard fields only
+#   * Save the result as CSV
+#   * Construct another query for the desired fields (according to the specifications described by the admin)
+#   * Save the result as CSV
+#
+# Custom Field Mapping:
+#   * One entry per client and salesforce entity
+#   * A key/value store for custom fields is reserved. Number of custom fields is upper bounded by 15.
+#
+# Loaded Data:
+#   * One table per salesforce entity
+#   * Each table will have the standard fields and the 15 custom fields
 
 
 def ini():
@@ -165,43 +204,19 @@ def ini():
 
     account_extractor = AccountExtractor(syncer=syncer)
 
-    import ipdb
-    ipdb.set_trace()
+    result_iterator = call_with_refresh_token_wrap(func=account_extractor.fetch,
+                                                   connection=syncer.connection)
+    account_extractor.save_results(result_iterator)
 
-    call_with_refresh_token_wrap(func=account_extractor.fetch_and_save,
-                                 connection=syncer.connection)
-
-
-
-    # entity = call_with_refresh_token_wrap(get_salesforce_entity,
-    #                                       connection=self.syncer.connection,
-    #                                       entity_name='Account',
-    #                                       salesforce=self.syncer.salesforce,
-    #                                       )
+    # entities = ['Account', 'AccountHistory', 'Contact', 'ContactHistory', 'Opportunity', 'OpportunityHistory',
+    #             'OpportunityFieldHistory', 'Lead', 'Task', 'User', 'UserRole', 'Event']
     #
-    # call_with_refresh_token_wrap(describe_entity,
-    #                              connection=self.syncer.connection,
-    #                              entity=entity)
-
-    # for k, v in entity.metadata()['objectDescribe'].items():
-    #     print("{}: {}".format(k, v))
-
-    # descr = syncer.salesforce.Contact.describe()
-    # desc['name']
-    # desc['label']
-    # desc['fields'][0]['name']
-    # fields = desc['fields']
-    # [field['name'] for field in fields]
-    # print(description)
-
-    # job = syncer.bulk.create_query_job('Contact')
-    # batch = syncer.bulk.query(job, "select Id, LastName from Contact")
-    #
-    # syncer.bulk.close_job(job)
-    # while not syncer.bulk.is_batch_done(job, batch):
-    #     sleep(10)
-    #
-    # for result in syncer.bulk.get_all_results_for_batch(batch):
-    #     for row in result:
-    #         print(row)
-    # print('----')
+    # for entity_name in entities:
+    #     entity = call_with_refresh_token_wrap(get_salesforce_entity,
+    #                                           connection=syncer.connection,
+    #                                           entity_name=entity_name,
+    #                                           salesforce=syncer.salesforce,
+    #                                           )
+    #     call_with_refresh_token_wrap(describe_entity,
+    #                                  connection=syncer.connection,
+    #                                  entity=entity)
