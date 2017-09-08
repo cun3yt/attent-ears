@@ -18,6 +18,7 @@ daiquiri.setup(level=logging.WARNING)
 logger = daiquiri.getLogger()
 
 SALESFORCE_API_VERSION = '40.0'
+BULK_API_UNSUPPORTED_TYPES = ['address', 'geolocation']
 
 
 class Syncer:
@@ -147,7 +148,7 @@ class EntityExtractor:
         all_fields = self.entity.describe()['fields']
         return [field['name']
                 for field in all_fields
-                if field['type'] not in ['address', 'geolocation']]
+                if field['type'] not in BULK_API_UNSUPPORTED_TYPES]
 
     def fetch_and_save_entity_field_description(self):
         field_descriptions = self.entity.describe()['fields']
