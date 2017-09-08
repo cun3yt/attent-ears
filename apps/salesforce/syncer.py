@@ -4,12 +4,11 @@ from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceExpiredSession
 from tenacity import retry, stop_after_attempt
 from apps.salesforce.authentication import refresh_access_token
-from apps.salesforce.models import SalesforceAccount
+from apps.salesforce.models import *
 from apps.api_connection.models import ApiConnection
 import daiquiri
 import logging
 from salesforce_bulk import SalesforceBulk
-from cached_property import cached_property
 
 import unicodecsv
 import sys
@@ -89,23 +88,15 @@ def get_salesforce_entity(salesforce, entity_name):
 
 
 def describe_entity(entity):
-    # logger.warning("Meta Data for {}".format(entity.name))
-    # for k, v in entity.metadata()['objectDescribe'].items():
-    #     print("{}: {}".format(k, v))
-
-
-    # logger.warning("Entity Description")
-    # for k, v in entity.describe().items():
-    #     print("{}:".format(k))
-    #     print(json.dumps(v, indent=2, sort_keys=True))
-    #     print("-----\n-----\n-----\n")
+    logger.warning("Meta Data for {}".format(entity.name))
+    for k, v in entity.metadata()['objectDescribe'].items():
+        print("{}: {}".format(k, v))
 
     logger.warning("Fields of {}".format(entity.name))
-
-    vals = [(field['name'], field['type']) for field in entity.describe()['fields']]
+    values = [(field['name'], field['type']) for field in entity.describe()['fields']]
 
     agg = {}
-    for (name, t) in vals:
+    for (name, t) in values:
         agg[t] = agg.get(t, [])
         agg[t].append(name)
 
@@ -114,7 +105,11 @@ def describe_entity(entity):
 
 
 class EntityExtractor:
-    def __init__(self, syncer: Syncer, entity):
+    def __init__(self, syncer: Syncer):
+        entity = call_with_refresh_token_wrap(func=get_salesforce_entity,
+                                              connection=syncer.connection,
+                                              salesforce=syncer.salesforce,
+                                              entity_name=self.get_sfdc_entity_name())
         self.syncer = syncer
         self.entity = entity
 
@@ -136,9 +131,6 @@ class EntityExtractor:
                 self._save_as_model(row)
 
     def _save_as_model(self, row):
-        logger.warning("SAVE WITH: ")
-        print(json.dumps(dict(row), indent=2, sort_keys=True))
-
         save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
         save_fn(row, self.syncer.user.client)
 
@@ -157,59 +149,138 @@ class EntityExtractor:
                 for field in all_fields
                 if field['type'] not in ['address', 'geolocation']]
 
-    def get_model_class(self):
-        raise NotImplementedError
+    def fetch_and_save_entity_field_description(self):
+        field_descriptions = self.entity.describe()['fields']
+        standard_fields = [{'name': field['name'], 'type': field['type']} for field in field_descriptions
+                           if not field['name'].endswith("__c")]
+        custom_fields = [{'name': field['name'], 'type': field['type']} for field in field_descriptions
+                         if field['name'].endswith("__c")]
+        SalesforceEntityDescription.objects.update_or_create(
+            client=self.syncer.user.client,
+            entity_name=self.get_sfdc_entity_name(),
+            defaults={
+                'standard_fields': standard_fields,
+                'custom_fields': custom_fields,
+            })
+
+    @classmethod
+    def get_sfdc_entity_name(cls):
+        return cls.get_specs()['entity']
+
+    @classmethod
+    def get_model_class(cls):
+        return cls.get_specs()['model_class']
+
+    @classmethod
+    def get_specs(cls):
+        raise NotImplemented
 
 
 class AccountExtractor(EntityExtractor):
-    def __init__(self, syncer: Syncer):
-        account_entity = call_with_refresh_token_wrap(func=get_salesforce_entity,
-                                                      connection=syncer.connection,
-                                                      salesforce=syncer.salesforce,
-                                                      entity_name='Account',
-                                                      )
-        super(AccountExtractor, self).__init__(syncer=syncer,
-                                               entity=account_entity)
-
-    def get_model_class(self):
-        return 'SalesforceAccount'
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Account',
+                'model_class': 'SalesforceAccount'}
 
 
-# Path 1:
-#   * Fetch the entity description (field definitions)
-#   * Save entity description in DB
-#   * Construct query for all fields
-#   * Save the result as CSV
-#
-# Path 2:
-#   * Fetch the entity description (field definitions)
-#   * Save entity description in DB
-#   * Construct query for standard fields only
-#   * Save the result as CSV
-#   * Construct another query for the desired fields (according to the specifications described by the admin)
-#   * Save the result as CSV
-#
-# Custom Field Mapping:
-#   * One entry per client and salesforce entity
-#   * A key/value store for custom fields is reserved. Number of custom fields is upper bounded by 15.
-#
-# Loaded Data:
-#   * One table per salesforce entity
-#   * Each table will have the standard fields and the 15 custom fields
+class AccountHistoryExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'AccountHistory',
+                'model_class': 'SalesforceAccountHistory'}
+
+
+class ContactExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Contact',
+                'model_class': 'SalesforceContact'}
+
+
+class ContactHistoryExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'ContactHistory',
+                'model_class': 'SalesforceContactHistory'}
+
+
+class OpportunityExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Opportunity',
+                'model_class': 'SalesforceOpportunity'}
+
+
+class OpportunityHistoryExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'OpportunityHistory',
+                'model_class': 'SalesforceOpportunityHistory'}
+
+
+class OpportunityFieldHistoryExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'OpportunityFieldHistory',
+                'model_class': 'SalesforceOpportunityFieldHistory'}
+
+
+class LeadExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Lead',
+                'model_class': 'SalesforceLead'}
+
+
+class TaskExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Task',
+                'model_class': 'SalesforceTask'}
+
+
+class UserExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'User',
+                'model_class': 'SalesforceUser'}
+
+
+class UserRoleExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'UserRole',
+                'model_class': 'SalesforceUserRole'}
+
+
+class EventExtractor(EntityExtractor):
+    @classmethod
+    def get_specs(cls):
+        return {'entity': 'Event',
+                'model_class': 'SalesforceEvent'}
 
 
 def ini():
     user = User.objects.get(id=3)
     syncer = Syncer(user)
 
-    account_extractor = AccountExtractor(syncer=syncer)
+    extractor_classes = ['AccountExtractor','AccountHistoryExtractor', 'ContactExtractor', 'ContactHistoryExtractor',
+                         'OpportunityExtractor', 'OpportunityHistoryExtractor', 'OpportunityFieldHistoryExtractor',
+                         'LeadExtractor', 'TaskExtractor', 'UserExtractor', 'UserRoleExtractor', 'EventExtractor']
 
-    result_iterator = call_with_refresh_token_wrap(func=account_extractor.fetch,
-                                                   connection=syncer.connection)
-    account_extractor.save_results(result_iterator)
+    for extractor_class_name in extractor_classes:
+        logger.warning("Running for {}".format(extractor_class_name))
 
-    # entities = ['Account', 'AccountHistory', 'Contact', 'ContactHistory', 'Opportunity', 'OpportunityHistory',
-    #             'OpportunityFieldHistory', 'Lead', 'Task', 'User', 'UserRole', 'Event']
+        extractor_class = getattr(sys.modules[__name__], extractor_class_name)
+        extractor = extractor_class(syncer=syncer)
+        call_with_refresh_token_wrap(func=extractor.fetch_and_save_entity_field_description,
+                                     connection=syncer.connection)
+
+        result_iterator = call_with_refresh_token_wrap(func=extractor.fetch,
+                                                       connection=syncer.connection)
+        extractor.save_results(result_iterator)
+
+    # entities = ['Account']
     #
     # for entity_name in entities:
     #     entity = call_with_refresh_token_wrap(get_salesforce_entity,
