@@ -264,7 +264,7 @@ def ini():
     user = User.objects.get(id=3)
     syncer = Syncer(user)
 
-    extractor_classes = ['AccountExtractor','AccountHistoryExtractor', 'ContactExtractor', 'ContactHistoryExtractor',
+    extractor_classes = ['AccountExtractor', 'AccountHistoryExtractor', 'ContactExtractor', 'ContactHistoryExtractor',
                          'OpportunityExtractor', 'OpportunityHistoryExtractor', 'OpportunityFieldHistoryExtractor',
                          'LeadExtractor', 'TaskExtractor', 'UserExtractor', 'UserRoleExtractor', 'EventExtractor']
 
