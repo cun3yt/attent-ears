@@ -50,11 +50,6 @@ class Syncer:
             version=SALESFORCE_API_VERSION,
         )
 
-    def update_connection(self, refresh_access_token_response):
-        self.connection.data = refresh_access_token_response.json()
-        self.connection.save()
-        self.set_syncer_with_connection()
-
     @staticmethod
     def _url_with_no_scheme(url):
         segments = url.split('://')
@@ -66,17 +61,23 @@ class RetryNeededError(Exception):
 
 
 @retry(stop=stop_after_attempt(3))
-def call_with_refresh_token_wrap(func, connection: ApiConnection, *args, **kwargs):
+def call_with_refresh_token_wrap(func, syncer: Syncer, extra_update_fn=None, *args, **kwargs):
     try:
-        # TODO It cannot update the `connection` variable when an error is raised although DB entry is updated
         return func(*args, **kwargs)
     except SalesforceExpiredSession:
+        connection = syncer.connection
         resp = refresh_access_token(connection.data)
         new_connection_data = connection.data.copy()
         new_connection_data.update(resp.json())
-        ApiConnection.objects.update_or_create(type='salesforce',
-                                               user=connection.user,
-                                               defaults={'data': new_connection_data})
+        new_connection, _ = ApiConnection.objects.update_or_create(type='salesforce',
+                                                                   user=connection.user,
+                                                                   defaults={'data': new_connection_data})
+        syncer.connection = new_connection
+        syncer.set_syncer_with_connection()
+
+        if extra_update_fn:
+            extra_update_fn(syncer=syncer)
+
         raise RetryNeededError("Retry")
     except Exception:
         raise RetryNeededError("Retry")
@@ -88,7 +89,10 @@ def get_salesforce_entity(salesforce, entity_name):
     return entity
 
 
-def describe_entity(entity):
+def describe_entity(entity_syncer: Syncer, entity_name):
+    salesforce = entity_syncer.salesforce
+    entity = get_salesforce_entity(salesforce, entity_name)
+
     logger.warning("Meta Data for {}".format(entity.name))
     for k, v in entity.metadata()['objectDescribe'].items():
         print("{}: {}".format(k, v))
@@ -107,21 +111,24 @@ def describe_entity(entity):
 
 class EntityExtractor:
     def __init__(self, syncer: Syncer):
-        entity = call_with_refresh_token_wrap(func=get_salesforce_entity,
-                                              connection=syncer.connection,
-                                              salesforce=syncer.salesforce,
-                                              entity_name=self.get_sfdc_entity_name())
+        self.syncer = None
+        self.set_syncer(syncer=syncer)
+
+    def set_syncer(self, syncer: Syncer):
         self.syncer = syncer
-        self.entity = entity
+
+    def get_sfdc_entity(self):
+        return get_salesforce_entity(salesforce=self.syncer.salesforce,
+                                     entity_name=self.get_sfdc_entity_name())
 
     def fetch(self):
-        job = self.syncer.bulk.create_queryall_job(self.entity.name)
+        job = self.syncer.bulk.create_queryall_job(self.get_sfdc_entity_name())
         query = self._build_bulk_query()
         batch = self.syncer.bulk.query(job, query)
         self.syncer.bulk.close_job(job)
 
         while not self.syncer.bulk.is_batch_done(batch):
-            sleep(10)
+            sleep(5)
 
         return self.syncer.bulk.get_all_results_for_query_batch(batch)
 
@@ -131,31 +138,18 @@ class EntityExtractor:
             for row in reader:
                 self._save_as_model(row)
 
-    def _save_as_model(self, row):
-        save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
-        save_fn(row, self.syncer.user.client)
-
-    def _build_bulk_query(self):
-        select_section = ",".join(self.get_fields_to_fetch())
-        return "select {} from {}".format(select_section, self.entity.name)
-
     @staticmethod
     def get_model_class_method(model_name, method_name):
         klass = getattr(sys.modules[__name__], model_name)
         return getattr(klass, method_name)
 
-    def get_fields_to_fetch(self):
-        all_fields = self.entity.describe()['fields']
-        return [field['name']
-                for field in all_fields
-                if field['type'] not in BULK_API_UNSUPPORTED_TYPES]
-
     def fetch_and_save_entity_field_description(self):
-        field_descriptions = self.entity.describe()['fields']
-        standard_fields = [{'name': field['name'], 'type': field['type']} for field in field_descriptions
+        all_fields = self._get_all_fetchable_fields()
+        standard_fields = [{'name': field['name'], 'type': field['type']} for field in all_fields
                            if not field['name'].endswith("__c")]
-        custom_fields = [{'name': field['name'], 'type': field['type']} for field in field_descriptions
+        custom_fields = [{'name': field['name'], 'type': field['type']} for field in all_fields
                          if field['name'].endswith("__c")]
+
         SalesforceEntityDescription.objects.update_or_create(
             client=self.syncer.user.client,
             entity_name=self.get_sfdc_entity_name(),
@@ -163,6 +157,23 @@ class EntityExtractor:
                 'standard_fields': standard_fields,
                 'custom_fields': custom_fields,
             })
+
+    def _get_all_fetchable_fields(self):
+        entity = self.get_sfdc_entity()
+        all_fields = entity.describe()['fields']
+        return [{'name': field['name'], 'type': field['type']}
+                for field in all_fields
+                if field['type'] not in BULK_API_UNSUPPORTED_TYPES]
+
+    def _save_as_model(self, row):
+        save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
+        save_fn(row, self.syncer.user.client)
+
+    def _build_bulk_query(self):
+        all_fields = self._get_all_fetchable_fields()
+        fetchable_field_names = [field['name'] for field in all_fields]
+        select_section = ",".join(fetchable_field_names)
+        return "select {} from {}".format(select_section, self.get_sfdc_entity_name())
 
     @classmethod
     def get_sfdc_entity_name(cls):
@@ -262,7 +273,10 @@ class EventExtractor(EntityExtractor):
 
 
 def ini():
-    user = User.objects.get(id=3)
+    user = User.objects.get(id=1)
+
+    # TODO For Syncer: consider taking client and the primary user for the sync
+    # TODO Attent admins and application admins can assign the primary user for the client
     syncer = Syncer(user)
 
     extractor_classes = ['AccountExtractor', 'AccountHistoryExtractor', 'ContactExtractor', 'ContactHistoryExtractor',
@@ -275,20 +289,18 @@ def ini():
         extractor_class = getattr(sys.modules[__name__], extractor_class_name)
         extractor = extractor_class(syncer=syncer)
         call_with_refresh_token_wrap(func=extractor.fetch_and_save_entity_field_description,
-                                     connection=syncer.connection)
+                                     syncer=syncer,
+                                     extra_update_fn=extractor.set_syncer)
 
         result_iterator = call_with_refresh_token_wrap(func=extractor.fetch,
-                                                       connection=syncer.connection)
+                                                       syncer=syncer,
+                                                       extra_update_fn=extractor.set_syncer)
         extractor.save_results(result_iterator)
 
     # entities = ['Account']
     #
     # for entity_name in entities:
-    #     entity = call_with_refresh_token_wrap(get_salesforce_entity,
-    #                                           connection=syncer.connection,
-    #                                           entity_name=entity_name,
-    #                                           salesforce=syncer.salesforce,
-    #                                           )
     #     call_with_refresh_token_wrap(describe_entity,
-    #                                  connection=syncer.connection,
-    #                                  entity=entity)
+    #                                  syncer=syncer,
+    #                                  entity_syncer=syncer,
+    #                                  entity_name=entity_name)
