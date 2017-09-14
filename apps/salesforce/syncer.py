@@ -84,7 +84,6 @@ def call_with_refresh_token_wrap(func, syncer: Syncer, extra_update_fn=None, *ar
 
 
 def get_salesforce_entity(salesforce, entity_name):
-    print("get_contact_metadata is called")
     entity = getattr(salesforce, entity_name)
     return entity
 
@@ -279,9 +278,19 @@ def ini():
     # TODO Attent admins and application admins can assign the primary user for the client
     syncer = Syncer(user)
 
-    extractor_classes = ['AccountExtractor', 'AccountHistoryExtractor', 'ContactExtractor', 'ContactHistoryExtractor',
-                         'OpportunityExtractor', 'OpportunityHistoryExtractor', 'OpportunityFieldHistoryExtractor',
-                         'LeadExtractor', 'TaskExtractor', 'UserExtractor', 'UserRoleExtractor', 'EventExtractor']
+    extractor_classes = ['AccountExtractor',
+                         'AccountHistoryExtractor',
+                         'ContactExtractor',
+                         'ContactHistoryExtractor',
+                         'OpportunityExtractor',
+                         'OpportunityHistoryExtractor',
+                         'OpportunityFieldHistoryExtractor',
+                         'LeadExtractor',
+                         'TaskExtractor',
+                         'UserExtractor',
+                         'UserRoleExtractor',
+                         'EventExtractor',
+                         ]
 
     for extractor_class_name in extractor_classes:
         logger.warning("Running for {}".format(extractor_class_name))
