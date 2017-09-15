@@ -4,6 +4,7 @@ from django.contrib.auth import logout
 from django.urls import reverse
 from apps.outreach.syncer import outreach_connect_url, outreach_exchange_for_access_token
 from apps.api_connection.models import ApiConnection
+from apps.salesforce.authentication import salesforce_connect_url, salesforce_exchange_for_access_token
 
 
 def index(request):
@@ -56,7 +57,13 @@ def settings(request):
     current_outreach_connection = None
     try:
         current_outreach_connection = request.user.api_connections.get(type='outreach')
-    except Exception as e:
+    except Exception:
+        pass
+
+    current_salesforce_connection = None
+    try:
+        current_salesforce_connection = request.user.api_connections.get(type='salesforce')
+    except Exception:
         pass
 
     outreach_connection = {
@@ -65,12 +72,25 @@ def settings(request):
         'detail': current_outreach_connection,
     }
 
+    salesforce_connection = {
+        'name': 'salesforce',
+        'setting_name': 'SalesForce',
+        'detail': current_salesforce_connection,
+    }
+
     if not current_outreach_connection:
         redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
         outreach_connection['connect_url'] = outreach_connect_url(redirect_uri)
 
+    if not current_salesforce_connection:
+        redirect_uri = request.build_absolute_uri(reverse('salesforce-redirect'))
+        salesforce_connection['connect_url'] = salesforce_connect_url(redirect_uri)
+
     api_connections = {
-        'data_api': [outreach_connection],
+        'data_api': [
+            outreach_connection,
+            salesforce_connection,
+        ],
     }
 
     context = {
@@ -89,8 +109,22 @@ def outreach_redirect(request):
     redirect_uri = request.build_absolute_uri(reverse('outreach-redirect'))
     resp = outreach_exchange_for_access_token(authorization_code, redirect_uri)
 
-    api_connection, _ = ApiConnection.objects.get_or_create(type='outreach', user=request.user)
-    api_connection.data = resp.text
-    api_connection.save()
+    ApiConnection.objects.update_or_create(type='outreach',
+                                           user=request.user,
+                                           defaults={'data': resp.text})    # TODO: must be resp.json()
+    return redirect(reverse('settings'))
 
+
+def salesforce_redirect(request):
+    if not request.user.is_authenticated():
+        redirect('/')
+
+    authorization_code = request.GET.get('code')
+
+    redirect_uri = request.build_absolute_uri(reverse('salesforce-redirect'))
+    resp = salesforce_exchange_for_access_token(authorization_code=authorization_code, redirect_uri=redirect_uri)
+
+    ApiConnection.objects.update_or_create(type='salesforce',
+                                           user=request.user,
+                                           defaults={'data': resp.json()})
     return redirect(reverse('settings'))

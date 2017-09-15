@@ -44,9 +44,11 @@ INSTALLED_APPS = [
     'social_django',
     'apps.api_connection',
     'apps.outreach',
+    'apps.salesforce',
     'visualizer',
     'attent_calendar',
     'sslserver',
+    'stringcase',
 ]
 
 MIDDLEWARE = [
