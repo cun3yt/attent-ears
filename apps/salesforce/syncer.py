@@ -14,6 +14,7 @@ from random import random
 import unicodecsv
 import sys
 import json
+import traceback
 
 daiquiri.setup(level=logging.WARNING)
 logger = daiquiri.getLogger()
@@ -363,21 +364,27 @@ def ini():
                          ]
 
     for extractor_class_name in extractor_classes:
-        logger.warning("Running for {}".format(extractor_class_name))
+        try:
+            logger.warning("Running for {}".format(extractor_class_name))
 
-        extractor_class = getattr(sys.modules[__name__], extractor_class_name)
-        extractor = extractor_class(syncer=syncer)
-        call_with_refresh_token_wrap(func=extractor.fetch_and_save_entity_field_description,
-                                     syncer=syncer,
-                                     extra_update_fn=extractor.set_syncer)
+            extractor_class = getattr(sys.modules[__name__], extractor_class_name)
+            extractor = extractor_class(syncer=syncer)
+            call_with_refresh_token_wrap(func=extractor.fetch_and_save_entity_field_description,
+                                         syncer=syncer,
+                                         extra_update_fn=extractor.set_syncer)
 
-        while True:
-            logger.warning("Fetching a Batch with {}".format(extractor_class_name))
+            while True:
+                logger.warning("Fetching a Batch with {}".format(extractor_class_name))
 
-            result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
-                                                                        syncer=syncer,
-                                                                        extra_update_fn=extractor.set_syncer)
-            is_finalized = extractor.save_results(result_iterator, sync_status)
+                result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
+                                                                            syncer=syncer,
+                                                                            extra_update_fn=extractor.set_syncer)
+                is_finalized = extractor.save_results(result_iterator, sync_status)
 
-            if is_finalized:
-                break
+                if is_finalized:
+                    break
+        except Exception as exc:
+            logger.error("Log This: Unexpected Exception, Details: {}".format(exc))
+            print("-"*60)
+            traceback.print_exc(file=sys.stdout)
+            print("-"*60)
