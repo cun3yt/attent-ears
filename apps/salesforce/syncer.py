@@ -5,10 +5,11 @@ from simple_salesforce.exceptions import SalesforceExpiredSession
 from tenacity import retry, stop_after_attempt
 from apps.salesforce.authentication import refresh_access_token
 from apps.salesforce.models import *
-from apps.api_connection.models import ApiConnection
+from apps.api_connection.models import ApiConnection, ApiSyncStatus
 import daiquiri
 import logging
 from salesforce_bulk import SalesforceBulk
+from random import random
 
 import unicodecsv
 import sys
@@ -109,6 +110,9 @@ def describe_entity(entity_syncer: Syncer, entity_name):
 
 
 class EntityExtractor:
+    BATCH_LIMIT = 50_000
+    OFFSET_CHECK_POINT_PROBABILITY = 0.02
+
     def __init__(self, syncer: Syncer):
         self.syncer = None
         self.set_syncer(syncer=syncer)
@@ -120,22 +124,58 @@ class EntityExtractor:
         return get_salesforce_entity(salesforce=self.syncer.salesforce,
                                      entity_name=self.get_sfdc_entity_name())
 
+    def get_last_sync_state(self):
+        return ApiSyncStatus.objects.filter(api_connection=self.syncer.connection,
+                                            resource=self.get_sfdc_entity_name()).latest(field_name='start')
+
+    def generate_api_sync_entry(self):
+        try:
+            previous_status = self.get_last_sync_state()
+            offset = previous_status.extra_data['last_offset_check_point']
+        except ApiSyncStatus.DoesNotExist:
+            offset = None
+
+        return ApiSyncStatus.add_sync_status(api_connection=self.syncer.connection,
+                                             resource=self.get_sfdc_entity_name(),
+                                             extra_data={
+                                                 'batch_size': self.BATCH_LIMIT,
+                                                 'start_offset': offset,
+                                                 'last_offset_check_point': offset,
+                                                 'is_whole_fetch_complete': False,  # reference, no logic around on it
+                                             })
+
     def fetch(self):
-        job = self.syncer.bulk.create_queryall_job(self.get_sfdc_entity_name())
-        query = self._build_bulk_query()
+        sync_status = self.generate_api_sync_entry()
+        offset = sync_status.extra_data.get('start_offset', None)
+        where_clause = 'SystemModstamp > {}'.format(offset) if offset else None
+
+        job = self.syncer.bulk.create_query_job(self.get_sfdc_entity_name())
+        query = self._build_bulk_query(where=where_clause, order_by='SystemModstamp', limit=self.BATCH_LIMIT)
         batch = self.syncer.bulk.query(job, query)
         self.syncer.bulk.close_job(job)
+
+        import ipdb
+        ipdb.set_trace()
 
         while not self.syncer.bulk.is_batch_done(batch):
             sleep(5)
 
-        return self.syncer.bulk.get_all_results_for_query_batch(batch)
+        return self.syncer.bulk.get_all_results_for_query_batch(batch), sync_status
 
-    def save_results(self, result_iterator):
+    def save_results(self, result_iterator, sync_status: ApiSyncStatus):
         for result in result_iterator:
             reader = unicodecsv.DictReader(result, encoding='utf-8')
+
             for row in reader:
+                print(row['SystemModstamp'])
                 self._save_as_model(row)
+
+                if random() < self.OFFSET_CHECK_POINT_PROBABILITY:
+                    logger.warning("UPDATE ON Sync_Status")
+                    sync_status.extra_data['last_offset_check_point'] = row['SystemModstamp']
+                    sync_status.save()
+
+        sync_status.add_end()
 
     @staticmethod
     def get_model_class_method(model_name, method_name):
@@ -168,11 +208,19 @@ class EntityExtractor:
         save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
         save_fn(row, self.syncer.user.client)
 
-    def _build_bulk_query(self):
+    def _build_bulk_query(self, where=None, order_by=None, limit=100_000):
         all_fields = self._get_all_fetchable_fields()
         fetchable_field_names = [field['name'] for field in all_fields]
         select_section = ",".join(fetchable_field_names)
-        return "select {} from {}".format(select_section, self.get_sfdc_entity_name())
+        where_section = "WHERE {}".format(where) if where else ""
+        order_section = "ORDER BY {}".format(order_by) if order_by else ""
+        limit = "LIMIT {}".format(limit) if limit else ""
+
+        return "select {} from {} {} {} {}".format(select_section,
+                                                   self.get_sfdc_entity_name(),
+                                                   where_section,
+                                                   order_section,
+                                                   limit)
 
     @classmethod
     def get_sfdc_entity_name(cls):
@@ -301,10 +349,10 @@ def ini():
                                      syncer=syncer,
                                      extra_update_fn=extractor.set_syncer)
 
-        result_iterator = call_with_refresh_token_wrap(func=extractor.fetch,
-                                                       syncer=syncer,
-                                                       extra_update_fn=extractor.set_syncer)
-        extractor.save_results(result_iterator)
+        result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
+                                                                    syncer=syncer,
+                                                                    extra_update_fn=extractor.set_syncer)
+        extractor.save_results(result_iterator, sync_status)
 
     # entities = ['Account']
     #
