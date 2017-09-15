@@ -40,7 +40,6 @@ class SalesforceEntityMixin(models.Model):
     client = models.ForeignKey(Client)
 
     sfdc_id = models.TextField(db_index=True)
-    is_deleted = models.TextField()
     rest_of_data = JSONField(default={})
 
     @classmethod
@@ -48,8 +47,12 @@ class SalesforceEntityMixin(models.Model):
         return [f.name for f in cls._meta.fields]
 
     @classmethod
-    def save_from_bulk_row(cls, row, client: Client):
+    def save_or_delete_from_bulk_row(cls, row, client: Client):
         print('save_from_bulk_row is called')
+
+        if row['IsDeleted'].lower() == 'true':
+            cls.objects.filter(client=client, sfdc_id=row['Id']).delete()
+            return
 
         field_names = cls.field_names()
         overrides = cls.field_mapping_overrides()

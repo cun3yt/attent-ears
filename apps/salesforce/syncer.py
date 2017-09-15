@@ -110,8 +110,8 @@ def describe_entity(entity_syncer: Syncer, entity_name):
 
 
 class EntityExtractor:
-    BATCH_LIMIT = 50_000
-    OFFSET_CHECK_POINT_PROBABILITY = 0.02
+    BATCH_LIMIT = 100_000
+    OFFSET_CHECK_POINT_PROBABILITY = 0.02   # Interval [0,1)
 
     def __init__(self, syncer: Syncer):
         self.syncer = None
@@ -129,13 +129,19 @@ class EntityExtractor:
                                             resource=self.get_sfdc_entity_name()).latest(field_name='start')
 
     def generate_api_sync_entry(self):
+        offset = None
+        comparison_op = '>='
+
         try:
             previous_status = self.get_last_sync_state()
             offset = previous_status.extra_data['last_offset_check_point']
+            comparison_op = '>' if previous_status.extra_data['is_whole_fetch_complete'] \
+                else comparison_op
         except ApiSyncStatus.DoesNotExist:
-            offset = None
+            pass
 
-        return ApiSyncStatus.add_sync_status(api_connection=self.syncer.connection,
+        return comparison_op,\
+               ApiSyncStatus.add_sync_status(api_connection=self.syncer.connection,
                                              resource=self.get_sfdc_entity_name(),
                                              extra_data={
                                                  'batch_size': self.BATCH_LIMIT,
@@ -145,37 +151,53 @@ class EntityExtractor:
                                              })
 
     def fetch(self):
-        sync_status = self.generate_api_sync_entry()
+        comparison_op, sync_status = self.generate_api_sync_entry()
         offset = sync_status.extra_data.get('start_offset', None)
-        where_clause = 'SystemModstamp > {}'.format(offset) if offset else None
+        where_clause = "SystemModstamp {} {}".format(comparison_op, offset) if offset else None
 
-        job = self.syncer.bulk.create_query_job(self.get_sfdc_entity_name())
+        job = self.syncer.bulk.create_queryall_job(self.get_sfdc_entity_name())
         query = self._build_bulk_query(where=where_clause, order_by='SystemModstamp', limit=self.BATCH_LIMIT)
+
+        logger.warning("QUERY: {}".format(query))
+
         batch = self.syncer.bulk.query(job, query)
         self.syncer.bulk.close_job(job)
-
-        import ipdb
-        ipdb.set_trace()
 
         while not self.syncer.bulk.is_batch_done(batch):
             sleep(5)
 
         return self.syncer.bulk.get_all_results_for_query_batch(batch), sync_status
 
-    def save_results(self, result_iterator, sync_status: ApiSyncStatus):
+    def save_results(self, result_iterator, sync_status: ApiSyncStatus) -> bool:
+        total_entries_fetched = 0
+        last_system_modstamp = None
+
         for result in result_iterator:
             reader = unicodecsv.DictReader(result, encoding='utf-8')
 
             for row in reader:
-                print(row['SystemModstamp'])
+                system_modstamp = row['SystemModstamp']
+                print(system_modstamp)
                 self._save_as_model(row)
 
                 if random() < self.OFFSET_CHECK_POINT_PROBABILITY:
                     logger.warning("UPDATE ON Sync_Status")
-                    sync_status.extra_data['last_offset_check_point'] = row['SystemModstamp']
+                    sync_status.extra_data['last_offset_check_point'] = system_modstamp
                     sync_status.save()
 
+                last_system_modstamp = system_modstamp
+                total_entries_fetched += 1
+
+        last_system_modstamp = last_system_modstamp if last_system_modstamp \
+            else sync_status.extra_data['last_offset_check_point']
+
+        sync_status.extra_data['last_offset_check_point'] = last_system_modstamp
+
+        is_whole_fetch_complete = True if total_entries_fetched < self.BATCH_LIMIT else False
+        sync_status.extra_data['is_whole_fetch_complete'] = is_whole_fetch_complete
         sync_status.add_end()
+
+        return is_whole_fetch_complete
 
     @staticmethod
     def get_model_class_method(model_name, method_name):
@@ -205,7 +227,7 @@ class EntityExtractor:
                 if field['type'] not in BULK_API_UNSUPPORTED_TYPES]
 
     def _save_as_model(self, row):
-        save_fn = self.get_model_class_method(self.get_model_class(), 'save_from_bulk_row')
+        save_fn = self.get_model_class_method(self.get_model_class(), 'save_or_delete_from_bulk_row')
         save_fn(row, self.syncer.user.client)
 
     def _build_bulk_query(self, where=None, order_by=None, limit=100_000):
@@ -349,15 +371,13 @@ def ini():
                                      syncer=syncer,
                                      extra_update_fn=extractor.set_syncer)
 
-        result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
-                                                                    syncer=syncer,
-                                                                    extra_update_fn=extractor.set_syncer)
-        extractor.save_results(result_iterator, sync_status)
+        while True:
+            logger.warning("Fetching a Batch with {}".format(extractor_class_name))
 
-    # entities = ['Account']
-    #
-    # for entity_name in entities:
-    #     call_with_refresh_token_wrap(describe_entity,
-    #                                  syncer=syncer,
-    #                                  entity_syncer=syncer,
-    #                                  entity_name=entity_name)
+            result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
+                                                                        syncer=syncer,
+                                                                        extra_update_fn=extractor.set_syncer)
+            is_finalized = extractor.save_results(result_iterator, sync_status)
+
+            if is_finalized:
+                break
