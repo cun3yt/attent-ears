@@ -47,7 +47,7 @@ class SalesforceEntityMixin(models.Model):
     def save_or_delete_from_bulk_row(cls, row, client: Client):
         print('save_from_bulk_row is called')
 
-        if row['IsDeleted'].lower() == 'true':
+        if row.get('IsDeleted', 'false').lower() == 'true':
             cls.objects.filter(client=client, sfdc_id=row['Id']).delete()
             return
 
