@@ -29,9 +29,6 @@ class SalesforceEntityDescription(TimeStampedMixin):
     standard_fields = JSONField()
     custom_fields = JSONField()
 
-    def save_field_descriptions(self):
-        pass
-
 
 class SalesforceEntityMixin(models.Model):
     class Meta:
@@ -158,7 +155,6 @@ class SalesforceAccountHistory(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceContact(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_contact'
-    pass
 
     master_record_id = models.TextField()
     account_id = models.TextField(db_index=True)
@@ -206,7 +202,6 @@ class SalesforceContact(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceContactHistory(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_contact_history'
-    pass
 
     contact_id = models.TextField(db_index=True)
     created_by_id = models.TextField(db_index=True)
@@ -259,7 +254,6 @@ class SalesforceOpportunity(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceOpportunityHistory(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_opportunity_history'
-    pass
 
     opportunity_id = models.TextField(db_index=True)
     created_by_id = models.TextField()
@@ -276,7 +270,6 @@ class SalesforceOpportunityHistory(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceOpportunityFieldHistory(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_opportunity_field_history'
-    pass
 
     opportunity_id = models.TextField(db_index=True)
     created_by_id = models.TextField()
@@ -289,7 +282,6 @@ class SalesforceOpportunityFieldHistory(SalesforceEntityMixin, TimeStampedMixin)
 class SalesforceLead(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_lead'
-    pass
 
     master_record_id = models.TextField()
     last_name = models.TextField()
@@ -345,7 +337,6 @@ class SalesforceLead(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceTask(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_task'
-    pass
 
     who_id = models.TextField(db_index=True)
     what_id = models.TextField(db_index=True)
@@ -391,7 +382,6 @@ class SalesforceTask(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceUser(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_user'
-    pass
 
     username = models.TextField()
     last_name = models.TextField()
@@ -548,7 +538,6 @@ class SalesforceUser(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceUserRole(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_user_role'
-    pass
 
     name = models.TextField()
     parent_role_id = models.TextField()
@@ -570,7 +559,6 @@ class SalesforceUserRole(SalesforceEntityMixin, TimeStampedMixin):
 class SalesforceEvent(SalesforceEntityMixin, TimeStampedMixin):
     class Meta:
         db_table = 'salesforce_event'
-    pass
 
     who_id = models.TextField(db_index=True)
     what_id = models.TextField(db_index=True)
