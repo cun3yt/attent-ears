@@ -154,10 +154,12 @@ class EntityExtractor:
     def fetch(self):
         comparison_op, sync_status = self.generate_api_sync_entry()
         offset = sync_status.extra_data.get('start_offset', None)
-        where_clause = "SystemModstamp {} {}".format(comparison_op, offset) if offset else None
+
+        pagination_field = self.get_pagination_field()
+        where_clause = "{} {} {}".format(pagination_field, comparison_op, offset) if offset else None
 
         job = self.syncer.bulk.create_queryall_job(self.get_sfdc_entity_name())
-        query = self._build_bulk_query(where=where_clause, order_by='SystemModstamp', limit=self.BATCH_LIMIT)
+        query = self._build_bulk_query(where=where_clause, order_by=pagination_field, limit=self.BATCH_LIMIT)
 
         logger.warning("QUERY: {}".format(query))
 
@@ -171,28 +173,29 @@ class EntityExtractor:
 
     def save_results(self, result_iterator, sync_status: ApiSyncStatus) -> bool:
         total_entries_fetched = 0
-        last_system_modstamp = None
+        pagination_field = self.get_pagination_field()
+        last_pagination_item = None
 
         for result in result_iterator:
             reader = unicodecsv.DictReader(result, encoding='utf-8')
 
             for row in reader:
-                system_modstamp = row['SystemModstamp']
-                print(system_modstamp)
+                pagination_item = row[pagination_field]
+                print(pagination_item)
                 self._save_as_model(row)
 
                 if random() < self.OFFSET_CHECK_POINT_PROBABILITY:
                     logger.warning("UPDATE ON Sync_Status")
-                    sync_status.extra_data['last_offset_check_point'] = system_modstamp
+                    sync_status.extra_data['last_offset_check_point'] = pagination_item
                     sync_status.save()
 
-                last_system_modstamp = system_modstamp
+                last_pagination_item = pagination_item
                 total_entries_fetched += 1
 
-        last_system_modstamp = last_system_modstamp if last_system_modstamp \
+        last_pagination_item = last_pagination_item if last_pagination_item \
             else sync_status.extra_data['last_offset_check_point']
 
-        sync_status.extra_data['last_offset_check_point'] = last_system_modstamp
+        sync_status.extra_data['last_offset_check_point'] = last_pagination_item
 
         is_whole_fetch_complete = True if total_entries_fetched < self.BATCH_LIMIT else False
         sync_status.extra_data['is_whole_fetch_complete'] = is_whole_fetch_complete
@@ -231,7 +234,7 @@ class EntityExtractor:
         save_fn = self.get_model_class_method(self.get_model_class(), 'save_or_delete_from_bulk_row')
         save_fn(row, self.syncer.user.client)
 
-    def _build_bulk_query(self, where=None, order_by=None, limit=100_000):
+    def _build_bulk_query(self, where=None, order_by=None, limit=BATCH_LIMIT):
         all_fields = self._get_all_fetchable_fields()
         fetchable_field_names = [field['name'] for field in all_fields]
         select_section = ",".join(fetchable_field_names)
@@ -254,6 +257,10 @@ class EntityExtractor:
         return cls.get_specs()['model_class']
 
     @classmethod
+    def get_pagination_field(cls):
+        return cls.get_specs().get('pagination_field', 'SystemModstamp')
+
+    @classmethod
     def get_specs(cls):
         raise NotImplemented
 
@@ -269,7 +276,8 @@ class AccountHistoryExtractor(EntityExtractor):
     @classmethod
     def get_specs(cls):
         return {'entity': 'AccountHistory',
-                'model_class': 'SalesforceAccountHistory'}
+                'model_class': 'SalesforceAccountHistory',
+                'pagination_field': 'CreatedDate'}
 
 
 class ContactExtractor(EntityExtractor):
@@ -283,7 +291,8 @@ class ContactHistoryExtractor(EntityExtractor):
     @classmethod
     def get_specs(cls):
         return {'entity': 'ContactHistory',
-                'model_class': 'SalesforceContactHistory'}
+                'model_class': 'SalesforceContactHistory',
+                'pagination_field': 'CreatedDate'}
 
 
 class OpportunityExtractor(EntityExtractor):
@@ -304,7 +313,8 @@ class OpportunityFieldHistoryExtractor(EntityExtractor):
     @classmethod
     def get_specs(cls):
         return {'entity': 'OpportunityFieldHistory',
-                'model_class': 'SalesforceOpportunityFieldHistory'}
+                'model_class': 'SalesforceOpportunityFieldHistory',
+                'pagination_field': 'CreatedDate'}
 
 
 class LeadExtractor(EntityExtractor):
@@ -349,7 +359,8 @@ def ini():
     # TODO Attent admins and application admins can assign the primary user for the client
     syncer = Syncer(user)
 
-    extractor_classes = ['AccountExtractor',
+    extractor_classes = [
+                         # 'AccountExtractor',
                          'AccountHistoryExtractor',
                          'ContactExtractor',
                          'ContactHistoryExtractor',
