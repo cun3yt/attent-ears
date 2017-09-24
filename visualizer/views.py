@@ -75,12 +75,14 @@ def settings(request):
     outreach_connection = {
         'name': 'outreach',
         'setting_name': 'Outreach',
+        'meta': 'Sales Engagement Platform',
         'detail': current_outreach_connection,
     }
 
     salesforce_connection = {
         'name': 'salesforce',
-        'setting_name': 'SalesForce',
+        'setting_name': 'Salesforce',
+        'meta': 'Customer Relationship Management',
         'detail': current_salesforce_connection,
     }
 
@@ -94,8 +96,8 @@ def settings(request):
 
     api_connections = {
         'data_api': [
-            outreach_connection,
             salesforce_connection,
+            outreach_connection,
         ],
     }
 
