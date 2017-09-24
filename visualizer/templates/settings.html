@@ -1,26 +1,45 @@
 {% extends "__clean.html" %}
+{% load static %}
 
 {% block content %}
-    <h1>Settings</h1>
+    <div id="header">
+        <div class="ui menu">
+            <div class="header item">
+                <img src="{% static "attent-logo-100x100.png" %}">
+            </div>
 
-    <h2>User Info</h2>
-    <p>
-        Email Address: {{request.user.email}}
-    </p>
+            <div class="right menu">
+                <a href="/logout" class="item">Logout</a>
+            </div>
+        </div>
 
-    <h2>Data Sources</h2>
-    <p>
-      <ul>
-        {% for connection in api_connections.data_api %}
-            <li>
-              {{ connection.setting_name }}:
-              {% if connection.detail %}
-                  Connected
-              {% else %}
-                  <a href="{{ connection.connect_url }}">Connect Now</a>
-              {% endif %}
-            </li>
-        {% endfor %}
-      </ul>
-    </p>
+        <h2>Attent Connector</h2>
+        <p>
+            Welcome {{request.user.first_name}} {{ request.user.last_name }}.
+            Please connect as many services as possible for better insights.
+        </p>
+        <p>
+            If this is your first time here an Attent team member will reach out to you shortly.
+        </p>
+
+        <div class="ui cards">
+            {% for connection in api_connections.data_api %}
+                <div class="card">
+                    <div class="content">
+                        <div class="header">
+                            {{ connection.setting_name }}
+                        </div>
+                        <div class="meta">{{ connection.meta }}</div>
+                        <div class="description">
+                            {% if connection.detail %}
+                                <a class="ui button disabled">Connected</a>
+                            {% else %}
+                                <a class="ui button primary" href="{{ connection.connect_url }}">Connect Now</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 {% endblock %}

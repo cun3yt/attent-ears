@@ -1,0 +1,20 @@
+{% extends "__clean.html" %}
+{% load static %}
+
+{% block content %}
+    <div id="header">
+        <div class="ui menu">
+            <div class="header item">
+                <img src="{% static "attent-logo-100x100.png" %}">
+            </div>
+        </div>
+
+        <h1>Welcome to Attent Connector</h1>
+        <p>To start please connect with your G Suite account</p>
+
+        <a class="ui google plus button" href="{% url "social:begin" "google-oauth2" %}">
+            <i class="google icon"></i>
+            Sign In With Google
+        </a>
+    </div>
+{% endblock %}

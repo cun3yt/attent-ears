@@ -8,7 +8,7 @@ iframe { width:100% ;
     border:none ;
 }
 
-div#header {
+#header {
     width: 98%;
     margin: 1% auto;
 }
