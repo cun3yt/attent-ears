@@ -360,7 +360,7 @@ def ini():
     syncer = Syncer(user)
 
     extractor_classes = [
-                         # 'AccountExtractor',
+                         'AccountExtractor',
                          'AccountHistoryExtractor',
                          'ContactExtractor',
                          'ContactHistoryExtractor',

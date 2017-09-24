@@ -9,37 +9,43 @@ from apps.salesforce.authentication import salesforce_connect_url, salesforce_ex
 
 def index(request):
     context = {}
-    template = 'index.html'
 
-    if not request.user.is_authenticated():
-        return render(request, template, context=context)
+    if request.user.is_authenticated():
+        return redirect(reverse('settings'))
 
-    client = request.user.client
+    return render(request, 'landing-page.html', context=context)
 
-    all_dashboards = client.periscopedashboard_set.filter(is_visible=True)
-    dashboard_id = request.GET.get('dashboard_id', '')
-
-    selected_dashboard_set = all_dashboards.filter(periscope_dashboard_id=dashboard_id)
-
-    context['all_dashboards'] = all_dashboards
-
-    if selected_dashboard_set.count() == 0:
-        context['no_dashboard_selected'] = True
-        return render(request, template, context=context)
-
-    selected_dashboard = selected_dashboard_set[0]
-
-    api_key = client.extra_info['periscope_api_key']
-    url = selected_dashboard.get_embed_url(api_key)
-
-    context['dashboards'] = client.periscopedashboard_set.filter(is_visible=True)
-
-    context['selected_dashboard'] = {
-        'url': url,
-        'id': selected_dashboard.id
-    }
-
-    return render(request, template, context=context)
+    # template = 'index.html'
+    #
+    # if not request.user.is_authenticated():
+    #     return render(request, template, context=context)
+    #
+    # client = request.user.client
+    #
+    # all_dashboards = client.periscopedashboard_set.filter(is_visible=True)
+    # dashboard_id = request.GET.get('dashboard_id', '')
+    #
+    # selected_dashboard_set = all_dashboards.filter(periscope_dashboard_id=dashboard_id)
+    #
+    # context['all_dashboards'] = all_dashboards
+    #
+    # if selected_dashboard_set.count() == 0:
+    #     context['no_dashboard_selected'] = True
+    #     return render(request, template, context=context)
+    #
+    # selected_dashboard = selected_dashboard_set[0]
+    #
+    # api_key = client.extra_info['periscope_api_key']
+    # url = selected_dashboard.get_embed_url(api_key)
+    #
+    # context['dashboards'] = client.periscopedashboard_set.filter(is_visible=True)
+    #
+    # context['selected_dashboard'] = {
+    #     'url': url,
+    #     'id': selected_dashboard.id
+    # }
+    #
+    # return render(request, template, context=context)
 
 
 @csrf_exempt
@@ -69,12 +75,14 @@ def settings(request):
     outreach_connection = {
         'name': 'outreach',
         'setting_name': 'Outreach',
+        'meta': 'Sales Engagement Platform',
         'detail': current_outreach_connection,
     }
 
     salesforce_connection = {
         'name': 'salesforce',
-        'setting_name': 'SalesForce',
+        'setting_name': 'Salesforce',
+        'meta': 'Customer Relationship Management',
         'detail': current_salesforce_connection,
     }
 
@@ -88,8 +96,8 @@ def settings(request):
 
     api_connections = {
         'data_api': [
-            outreach_connection,
             salesforce_connection,
+            outreach_connection,
         ],
     }
 
