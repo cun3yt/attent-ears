@@ -92,7 +92,6 @@ def run():
             # Creation should not be needed, just in case.
             transform_event_to_attent_event(gc_event)
 
-
     except Exception as exc:
         print("Log This: Unexpected Exception Exception Details: {}".format(exc))
         print("-"*60)
