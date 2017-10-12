@@ -1,5 +1,5 @@
 from core.sync_engine.google_calendar_syncer import SyncEnvironment
-from visualizer.models import Client
+from visualizer.models import Client, CLIENT_STATUS_ACTIVE
 from oauth2client.client import HttpAccessTokenRefreshError
 
 import sys
@@ -9,7 +9,7 @@ import traceback
 def run():
     print("Script: Extract Google Calendar Script Runs")
 
-    clients = Client.objects.filter(keep_in_sync=True)
+    clients = Client.objects.filter(status=CLIENT_STATUS_ACTIVE)
 
     print("Number of clients to keep in sync: {}".format(len(clients)))
 

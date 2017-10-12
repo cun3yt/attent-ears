@@ -16,6 +16,17 @@ from core.email_domains import is_email_address_personal
 from core.mixins import TimeStampedMixin
 
 
+CLIENT_STATUS_APPLIED = 'Applied'
+CLIENT_STATUS_ACTIVE = 'Active'
+CLIENT_STATUS_TERMINATED = 'Terminated'
+
+CLIENT_STATUS_CHOICES = (
+    (CLIENT_STATUS_APPLIED, CLIENT_STATUS_APPLIED),
+    (CLIENT_STATUS_ACTIVE, CLIENT_STATUS_ACTIVE),
+    (CLIENT_STATUS_TERMINATED, CLIENT_STATUS_TERMINATED),
+)
+
+
 class Client(TimeStampedMixin):
     class Meta:
         db_table = 'client'
@@ -25,10 +36,13 @@ class Client(TimeStampedMixin):
     website = models.CharField(max_length=255)
     email_domain = models.CharField(max_length=255)
     extra_info = JSONField(default={})
-    keep_in_sync = models.BooleanField(default=False)
+    status = models.TextField(choices=CLIENT_STATUS_CHOICES, default=CLIENT_STATUS_APPLIED)
 
     def is_email_address_in_domain(self, email_address: str):
         return is_email_address_in_domain(email_address, self.email_domain)
+
+    def __str__(self):
+        return '%s (%s)' % (self.name, self.email_domain)
 
 
 class User(AbstractUser, TimeStampedMixin):

@@ -1,12 +1,25 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Client
+from core.admin import AttentAdminModel
 
-admin.site.register(User, UserAdmin)
+from .models import User, Client, CLIENT_STATUS_CHOICES
 
 
-class ClientAdmin(admin.ModelAdmin):
-    fields = ['name', 'website', 'email_domain', 'keep_in_sync']
-    list_display = ('id', 'name', 'website', 'email_domain', 'keep_in_sync')
+class AttentUserAdmin(UserAdmin, AttentAdminModel):
+    pass
+
+admin.site.register(User, AttentUserAdmin)
+admin.site.disable_action('delete_selected')
+
+
+class ClientForm(forms.ModelForm):
+    status = forms.ChoiceField(choices=CLIENT_STATUS_CHOICES)
+
+
+class ClientAdmin(AttentAdminModel):
+    fields = ['name', 'website', 'email_domain', 'status']
+    list_display = ('id', 'name', 'website', 'email_domain', 'status')
+    form = ClientForm
 
 admin.site.register(Client, ClientAdmin)
