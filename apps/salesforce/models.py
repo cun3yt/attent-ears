@@ -85,10 +85,6 @@ class SalesforceEntityMixin(models.Model):
 
     @classmethod
     def push_save_commits(cls):
-
-        import ipdb
-        ipdb.set_trace()
-
         if len(cls.commit_list) < 1:
             print("Nothing to save")
             return

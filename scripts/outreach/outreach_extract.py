@@ -1,8 +1,14 @@
-from visualizer.models import User
+from visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
+from apps.api_connection.models import ApiConnection
 from django.urls import reverse
 from apps.outreach.syncer import OutreachSyncer
 import traceback
 import sys
+import daiquiri
+import logging
+
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
 
 ALLOWED_FNS = ['full_sync', 'partial_sync', 'test_sync']
 
@@ -35,21 +41,52 @@ def _print_usage_and_terminate():
     exit()
 
 
+def sync_client(client: Client, fn_name):
+    logger.info("Running sync'ing for Client id: {}, domain: {}".format(client.id, client.email_domain))
+
+    client_outreach_connection = ApiConnection.objects.filter(user__client=client, type='outreach') \
+        .order_by('id')
+    count = client_outreach_connection.count()
+
+    if count == 0:
+        logger.warning("There is no Outreach API Connection for Client: {} {}".format(client.id, client.email_domain))
+        return
+
+    api_connection = client_outreach_connection[0]
+    user = api_connection.user
+
+    if count > 1:
+        logger.warning("There are {} Outreach API Connection for Client id: {} domain: {}".format(count,
+                                                                                                  client.id,
+                                                                                                  client.email_domain
+                                                                                                  ))
+        logger.warning("Using the first user for the client, id: {} email: {}".format(user.id, user.email))
+
+    user = User.objects.get(id=1)
+    syncer = _setup_syncer(user)
+
+    fn = globals()[fn_name]
+    fn(syncer)
+
+
 def run(*args):
+    if len(args) < 1:
+        _print_usage_and_terminate()
+
+    fn_name = args[0]
+
+    if fn_name not in ALLOWED_FNS:
+        _print_usage_and_terminate()
+
     try:
-        user = User.objects.get(id=1)
-        syncer = _setup_syncer(user)
+        logger.info("Script: Outreach Syncer Script Runs")
 
-        if len(args) < 1:
-            _print_usage_and_terminate()
+        clients = Client.objects.filter(status=CLIENT_STATUS_ACTIVE)
 
-        fn_name = args[0]
+        logger.info("Number of clients to keep in sync: {}".format(len(clients)))
 
-        if fn_name not in ALLOWED_FNS:
-            _print_usage_and_terminate()
-
-        fn = globals()[fn_name]
-        fn(syncer)
+        for client in clients:
+            sync_client(client, fn_name)
 
     except Exception as ex:
         print("Log This: Unexpected Exception Exception Details: {}".format(ex))
