@@ -1,4 +1,4 @@
-from visualizer.models import User
+from visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
 from time import sleep
 from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceExpiredSession
@@ -111,7 +111,7 @@ def describe_entity(entity_syncer: Syncer, entity_name):
 
 
 class EntityExtractor:
-    BATCH_LIMIT = 10    # 200_000
+    BATCH_LIMIT = 100_000
     OFFSET_CHECK_POINT_PROBABILITY = 0.001   # Interval [0,1)
 
     def __init__(self, syncer: Syncer):
@@ -361,28 +361,45 @@ class EventExtractor(EntityExtractor):
                 'model_class': 'SalesforceEvent'}
 
 
-def ini():
-    user = User.objects.get(id=1)
+def sync_client(client: Client):
+    logger.info("Running sync'ing for Client id: {}, domain: {}".format(client.id, client.email_domain))
+
+    client_salesforce_connection = ApiConnection.objects.filter(user__client=client, type='salesforce').order_by('id')
+    count = client_salesforce_connection.count()
+
+    if count == 0:
+        logger.warning("There is no Salesforce API Connection for Client: {} {}".format(client.id, client.email_domain))
+        return
+
+    api_connection = client_salesforce_connection[0]
+    user = api_connection.user
+
+    if count > 1:
+        logger.warning("There are {} Salesforce API Connection for Client id: {} domain: {}".format(count,
+                                                                                                    client.id,
+                                                                                                    client.email_domain
+                                                                                                    ))
+        logger.warning("Using the first user for the client, id: {} email: {}".format(user.id, user.email))
 
     # TODO For Syncer: consider taking client and the primary user for the sync
     # TODO Attent admins and application admins can assign the primary user for the client
     syncer = Syncer(user)
 
     extractor_classes = [
-                         'AccountExtractor',
-                         'ContactExtractor',
-                         'OpportunityExtractor',
-                         'LeadExtractor',
-                         'TaskExtractor',
-                         'UserExtractor',
-                         'UserRoleExtractor',
-                         'EventExtractor',
+        'AccountExtractor',
+        'ContactExtractor',
+        'OpportunityExtractor',
+        'LeadExtractor',
+        'TaskExtractor',
+        'UserExtractor',
+        'UserRoleExtractor',
+        'EventExtractor',
 
-                         # 'AccountHistoryExtractor',
-                         # 'ContactHistoryExtractor',
-                         # 'OpportunityHistoryExtractor',
-                         # 'OpportunityFieldHistoryExtractor',
-                         ]
+        # 'AccountHistoryExtractor',
+        # 'ContactHistoryExtractor',
+        # 'OpportunityHistoryExtractor',
+        # 'OpportunityFieldHistoryExtractor',
+    ]
 
     for extractor_class_name in extractor_classes:
         try:
@@ -407,6 +424,17 @@ def ini():
                     break
         except Exception as exc:
             logger.error("Log This: Unexpected Exception, Details: {}".format(exc))
-            print("-"*60)
+            logger.error("-"*60)
             traceback.print_exc(file=sys.stdout)
-            print("-"*60)
+            logger.error("-"*60)
+
+
+def ini():
+    logger.info("Script: Salesforce Syncer Script Runs")
+
+    clients = Client.objects.filter(status=CLIENT_STATUS_ACTIVE)
+
+    logger.info("Number of clients to keep in sync: {}".format(len(clients)))
+
+    for client in clients:
+        sync_client(client)
