@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'attent_calendar',
     'sslserver',
     'stringcase',
+    'django.contrib.postgres',
+    'psqlextra',
 ]
 
 MIDDLEWARE = [
@@ -89,7 +91,7 @@ WSGI_APPLICATION = 'ears.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'psqlextra.backend',
         'NAME': 'cuneyt_instance',
         'USER': 'db_master_user',
         'PASSWORD': 'sample12!~_!s',
