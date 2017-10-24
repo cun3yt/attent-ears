@@ -85,25 +85,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ears.wsgi.application'
 
+
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'psqlextra.backend',
-        'NAME': 'spin2_db',
-        'USER': 'db_master_user',
-        'PASSWORD': 'sample12!~_!s',
-        'HOST': 'db-development.cc6flkhfnl9u.us-west-2.rds.amazonaws.com',
-        'PORT': '5432',
+        'NAME': os.environ.get('EARS_PROD_DB_NAME'),
+        'USER': os.environ.get('EARS_PROD_DB_USER'),
+        'PASSWORD': os.environ.get('EARS_PROD_DB_PASSWORD'),
+        'HOST': os.environ.get('EARS_PROD_DB_HOST'),
+        'PORT': os.environ.get('EARS_PROD_DB_PORT'),
     },
     'warehouse': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'attent',
-        'USER': 'cuneyt@attent.ai',
-        'PASSWORD': 'o3JkGKCRm8rmKbMT',
-        'HOST': 'db.panoply.io',
-        'PORT': '5439',
+        'NAME': os.environ.get('EARS_WAREHOUSE_DB_NAME'),
+        'USER': os.environ.get('EARS_WAREHOUSE_DB_USER'),
+        'PASSWORD': os.environ.get('EARS_WAREHOUSE_DB_PASSWORD'),
+        'HOST': os.environ.get('EARS_WAREHOUSE_DB_HOST'),
+        'PORT': os.environ.get('EARS_WAREHOUSE_DB_PORT'),
     },
 }
 
