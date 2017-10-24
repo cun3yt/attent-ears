@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'attent_calendar',
     'sslserver',
     'stringcase',
+    'django.contrib.postgres',
+    'psqlextra',
 ]
 
 MIDDLEWARE = [
@@ -95,7 +97,15 @@ DATABASES = {
         'PASSWORD': 'sample12!~_!s',
         'HOST': 'db-development.cc6flkhfnl9u.us-west-2.rds.amazonaws.com',
         'PORT': '5432',
-    }
+    },
+    'warehouse': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'attent',
+        'USER': 'cuneyt@attent.ai',
+        'PASSWORD': 'o3JkGKCRm8rmKbMT',
+        'HOST': 'db.panoply.io',
+        'PORT': '5439',
+    },
 }
 
 # Internationalization

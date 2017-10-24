@@ -1,4 +1,4 @@
-from visualizer.models import User
+from visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
 from time import sleep
 from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceExpiredSession
@@ -16,7 +16,7 @@ import sys
 import json
 import traceback
 
-daiquiri.setup(level=logging.WARNING)
+daiquiri.setup(level=logging.INFO)
 logger = daiquiri.getLogger()
 
 SALESFORCE_API_VERSION = '40.0'
@@ -94,11 +94,11 @@ def describe_entity(entity_syncer: Syncer, entity_name):
     salesforce = entity_syncer.salesforce
     entity = get_salesforce_entity(salesforce, entity_name)
 
-    logger.warning("Meta Data for {}".format(entity.name))
+    logger.info("Meta Data for {}".format(entity.name))
     for k, v in entity.metadata()['objectDescribe'].items():
         print("{}: {}".format(k, v))
 
-    logger.warning("Fields of {}".format(entity.name))
+    logger.info("Fields of {}".format(entity.name))
     values = [(field['name'], field['type']) for field in entity.describe()['fields']]
 
     agg = {}
@@ -112,7 +112,7 @@ def describe_entity(entity_syncer: Syncer, entity_name):
 
 class EntityExtractor:
     BATCH_LIMIT = 100_000
-    OFFSET_CHECK_POINT_PROBABILITY = 0.02   # Interval [0,1)
+    OFFSET_CHECK_POINT_PROBABILITY = 0.001   # Interval [0,1)
 
     def __init__(self, syncer: Syncer):
         self.syncer = None
@@ -161,17 +161,20 @@ class EntityExtractor:
         job = self.syncer.bulk.create_queryall_job(self.get_sfdc_entity_name())
         query = self._build_bulk_query(where=where_clause, order_by=pagination_field, limit=self.BATCH_LIMIT)
 
-        logger.warning("QUERY: {}".format(query))
+        logger.debug("QUERY: {}".format(query))
 
         batch = self.syncer.bulk.query(job, query)
         self.syncer.bulk.close_job(job)
 
         while not self.syncer.bulk.is_batch_done(batch):
-            sleep(5)
+            sleep(6)
 
         return self.syncer.bulk.get_all_results_for_query_batch(batch), sync_status
 
     def save_results(self, result_iterator, sync_status: ApiSyncStatus) -> bool:
+
+        logger.info("save results fn is called")
+
         total_entries_fetched = 0
         pagination_field = self.get_pagination_field()
         last_pagination_item = None
@@ -181,16 +184,18 @@ class EntityExtractor:
 
             for row in reader:
                 pagination_item = row[pagination_field]
-                print(pagination_item)
                 self._save_as_model(row)
 
                 if random() < self.OFFSET_CHECK_POINT_PROBABILITY:
-                    logger.warning("UPDATE ON Sync_Status")
+                    self._push_save_commits()
+                    logger.info("UPDATE ON Sync_Status. Last pagination value: {}".format(pagination_item))
                     sync_status.extra_data['last_offset_check_point'] = pagination_item
                     sync_status.save()
 
                 last_pagination_item = pagination_item
                 total_entries_fetched += 1
+
+            self._push_save_commits()
 
         last_pagination_item = last_pagination_item if last_pagination_item \
             else sync_status.extra_data['last_offset_check_point']
@@ -231,8 +236,12 @@ class EntityExtractor:
                 if field['type'] not in BULK_API_UNSUPPORTED_TYPES]
 
     def _save_as_model(self, row):
-        save_fn = self.get_model_class_method(self.get_model_class(), 'save_or_delete_from_bulk_row')
+        save_fn = self.get_model_class_method(self.get_model_class(), 'commit_or_delete_from_bulk_row')
         save_fn(row, self.syncer.user.client)
+
+    def _push_save_commits(self):
+        push_fn = self.get_model_class_method(self.get_model_class(), 'push_save_commits')
+        push_fn()
 
     def _build_bulk_query(self, where=None, order_by=None, limit=BATCH_LIMIT):
         all_fields = self._get_all_fetchable_fields()
@@ -352,31 +361,49 @@ class EventExtractor(EntityExtractor):
                 'model_class': 'SalesforceEvent'}
 
 
-def ini():
-    user = User.objects.get(id=1)
+def sync_client(client: Client):
+    logger.info("Running sync'ing for Client id: {}, domain: {}".format(client.id, client.email_domain))
+
+    client_salesforce_connection = ApiConnection.objects.filter(user__client=client, type='salesforce').order_by('id')
+    count = client_salesforce_connection.count()
+
+    if count == 0:
+        logger.warning("There is no Salesforce API Connection for Client: {} {}".format(client.id, client.email_domain))
+        return
+
+    api_connection = client_salesforce_connection[0]
+    user = api_connection.user
+
+    if count > 1:
+        logger.warning("There are {} Salesforce API Connection for Client id: {} domain: {}".format(count,
+                                                                                                    client.id,
+                                                                                                    client.email_domain
+                                                                                                    ))
+        logger.warning("Using the first user for the client, id: {} email: {}".format(user.id, user.email))
 
     # TODO For Syncer: consider taking client and the primary user for the sync
     # TODO Attent admins and application admins can assign the primary user for the client
     syncer = Syncer(user)
 
     extractor_classes = [
-                         'AccountExtractor',
-                         'AccountHistoryExtractor',
-                         'ContactExtractor',
-                         'ContactHistoryExtractor',
-                         'OpportunityExtractor',
-                         'OpportunityHistoryExtractor',
-                         'OpportunityFieldHistoryExtractor',
-                         'LeadExtractor',
-                         'TaskExtractor',
-                         'UserExtractor',
-                         'UserRoleExtractor',
-                         'EventExtractor',
-                         ]
+        'AccountExtractor',
+        'ContactExtractor',
+        'OpportunityExtractor',
+        'LeadExtractor',
+        'TaskExtractor',
+        'UserExtractor',
+        'UserRoleExtractor',
+        'EventExtractor',
+
+        # 'AccountHistoryExtractor',
+        # 'ContactHistoryExtractor',
+        # 'OpportunityHistoryExtractor',
+        # 'OpportunityFieldHistoryExtractor',
+    ]
 
     for extractor_class_name in extractor_classes:
         try:
-            logger.warning("Running for {}".format(extractor_class_name))
+            logger.info("Running for {}".format(extractor_class_name))
 
             extractor_class = getattr(sys.modules[__name__], extractor_class_name)
             extractor = extractor_class(syncer=syncer)
@@ -385,17 +412,29 @@ def ini():
                                          extra_update_fn=extractor.set_syncer)
 
             while True:
-                logger.warning("Fetching a Batch with {}".format(extractor_class_name))
+                logger.info("Fetching a Batch with {}".format(extractor_class_name))
 
                 result_iterator, sync_status = call_with_refresh_token_wrap(func=extractor.fetch,
                                                                             syncer=syncer,
                                                                             extra_update_fn=extractor.set_syncer)
+
                 is_finalized = extractor.save_results(result_iterator, sync_status)
 
                 if is_finalized:
                     break
         except Exception as exc:
             logger.error("Log This: Unexpected Exception, Details: {}".format(exc))
-            print("-"*60)
+            logger.error("-"*60)
             traceback.print_exc(file=sys.stdout)
-            print("-"*60)
+            logger.error("-"*60)
+
+
+def ini():
+    logger.info("Script: Salesforce Syncer Script Runs")
+
+    clients = Client.objects.filter(status=CLIENT_STATUS_ACTIVE)
+
+    logger.info("Number of clients to keep in sync: {}".format(len(clients)))
+
+    for client in clients:
+        sync_client(client)
