@@ -1,8 +1,8 @@
 import sys
 import traceback
 
+from apps.attent_calendar.models import AttentCalendar
 from apps.google_calendar.models import GoogleCalendar
-from attent_calendar.models import AttentCalendar
 
 
 def run():

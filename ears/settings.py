@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'apps.outreach',
     'apps.salesforce',
     'visualizer',
-    'attent_calendar',
+    'apps.attent_calendar',
     'sslserver',
     'stringcase',
     'django.contrib.postgres',

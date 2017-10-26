@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendarevent',
             name='external_attendees',
-            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='attent_calendar.AttentCalendarEventHasExternalAttendee', to='attent_calendar.ExternalAttendee'),
+            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='apps.attent_calendar.AttentCalendarEventHasExternalAttendee', to='apps.attent_calendar.ExternalAttendee'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendarevent',
             name='internal_attendees',
-            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='attent_calendar.AttentCalendarEventHasInternalAttendee', to='attent_calendar.InternalAttendee'),
+            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='apps.attent_calendar.AttentCalendarEventHasInternalAttendee', to='apps.attent_calendar.InternalAttendee'),
         ),
         migrations.AddField(
             model_name='attentcalendar',

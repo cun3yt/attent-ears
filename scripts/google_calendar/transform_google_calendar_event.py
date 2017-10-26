@@ -5,9 +5,9 @@ from django.db.models import F
 from django.utils import dateparse
 from django.utils import timezone
 
-from apps.google_calendar.models import GoogleCalendarEvent
-from attent_calendar.models import AttentCalendarEvent, InternalAttendee, ExternalAttendee, \
+from apps.attent_calendar.models import AttentCalendarEvent, InternalAttendee, ExternalAttendee, \
     AttentCalendarEventHasInternalAttendee, AttentCalendarEventHasExternalAttendee
+from apps.google_calendar.models import GoogleCalendarEvent
 from core.email_domains import is_email_address_personal
 
 
