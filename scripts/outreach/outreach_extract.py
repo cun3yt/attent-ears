@@ -1,11 +1,13 @@
-from visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
-from apps.api_connection.models import ApiConnection
-from django.urls import reverse
-from apps.outreach.syncer import OutreachSyncer
-import traceback
-import sys
-import daiquiri
 import logging
+import sys
+import traceback
+
+import daiquiri
+from django.urls import reverse
+
+from apps.api_connection.models import ApiConnection
+from apps.outreach.syncer import OutreachSyncer
+from apps.visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
 
 daiquiri.setup(level=logging.INFO)
 logger = daiquiri.getLogger()

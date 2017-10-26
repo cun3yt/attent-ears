@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendarevent',
             name='client',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendar',
             name='client',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
         ),
         migrations.AddField(
             model_name='attentcalendar',

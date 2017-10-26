@@ -1,13 +1,14 @@
-from urllib.parse import urlencode
-import requests
 import json
-from datetime import datetime, timedelta
-from apps.api_connection.models import ApiConnection, ApiSyncStatus, NoApiSyncStatusError
-from .models import OutreachAccount, OutreachProspect, OutreachProspectV1, OutreachUser, OutreachMailing, OutreachCall
-from visualizer.models import Client
 import math
+from datetime import datetime, timedelta
+from urllib.parse import urlencode
+
+import requests
 from tenacity import retry, wait_exponential, stop_after_attempt
 
+from apps.api_connection.models import ApiConnection, ApiSyncStatus, NoApiSyncStatusError
+from apps.visualizer.models import Client
+from .models import OutreachAccount, OutreachProspect, OutreachProspectV1, OutreachUser, OutreachMailing, OutreachCall
 
 OUTREACH_CONNECTION = {
     'client_id': '269ba724e0cd0a12ca3b46439c31bb2f13f19cd9c862b965081846d766fe07fa',

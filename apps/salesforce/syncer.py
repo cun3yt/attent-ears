@@ -1,20 +1,21 @@
-from visualizer.models import User, Client, CLIENT_STATUS_ACTIVE
+import json
+import logging
+import sys
+import traceback
+from random import random
 from time import sleep
+
+import daiquiri
+import unicodecsv
+from salesforce_bulk import SalesforceBulk
 from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceExpiredSession
 from tenacity import retry, stop_after_attempt
+
+from apps.api_connection.models import ApiConnection, ApiSyncStatus
 from apps.salesforce.authentication import refresh_access_token
 from apps.salesforce.models import *
-from apps.api_connection.models import ApiConnection, ApiSyncStatus
-import daiquiri
-import logging
-from salesforce_bulk import SalesforceBulk
-from random import random
-
-import unicodecsv
-import sys
-import json
-import traceback
+from apps.visualizer.models import CLIENT_STATUS_ACTIVE
 
 daiquiri.setup(level=logging.INFO)
 logger = daiquiri.getLogger()

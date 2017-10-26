@@ -10,8 +10,8 @@ from oauth2client import client
 
 from apps.google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs, \
     GoogleCalendarEvent
+from apps.visualizer.models import User, Client
 from ears.auth_settings import GOOGLE_OAUTH2_KEY, GOOGLE_OAUTH2_SECRET, GOOGLE_TOKEN_URI
-from visualizer.models import User, Client
 
 
 class RetrySync(Exception):

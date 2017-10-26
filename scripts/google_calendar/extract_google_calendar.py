@@ -1,10 +1,12 @@
-from core.sync_engine.google_calendar_syncer import SyncEnvironment
-from visualizer.models import Client, CLIENT_STATUS_ACTIVE
-from oauth2client.client import HttpAccessTokenRefreshError
+import logging
 import sys
 import traceback
+
 import daiquiri
-import logging
+from oauth2client.client import HttpAccessTokenRefreshError
+
+from apps.visualizer.models import Client, CLIENT_STATUS_ACTIVE
+from core.sync_engine.google_calendar_syncer import SyncEnvironment
 
 daiquiri.setup(level=logging.INFO)
 logger = daiquiri.getLogger()

@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('db_created_at', models.DateTimeField(auto_now_add=True)),
                 ('entity', models.CharField(db_index=True, max_length=50)),
                 ('mapping', django.contrib.postgres.fields.hstore.HStoreField()),
-                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
             ],
             options={
                 'db_table': 'salesforce_custom_field_mapping',

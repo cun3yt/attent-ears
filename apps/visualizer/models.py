@@ -1,20 +1,20 @@
+import binascii
+import hashlib
+import hmac
+import json
+from urllib.parse import urlencode
+
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.dispatch import receiver
 from email_split import email_split
-import binascii
-import hmac
-import hashlib
-from urllib.parse import urlencode
-import json
+
 from core.email_domains import is_email_address_in_domain
-from . import exceptions
 from core.email_domains import is_email_address_personal
-
 from core.mixins import TimeStampedMixin
-
+from . import exceptions
 
 CLIENT_STATUS_APPLIED = 'Applied'
 CLIENT_STATUS_ACTIVE = 'Active'

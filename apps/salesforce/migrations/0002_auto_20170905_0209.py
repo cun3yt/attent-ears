@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 ('last_activity_date', models.DateTimeField()),
                 ('last_viewed_date', models.DateTimeField()),
                 ('account_source', models.TextField()),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
             ],
             options={
                 'db_table': 'salesforce_account',
@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='salesforcecustomfieldmapping',
             name='client',
-            field=models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
+            field=models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
             preserve_default=False,
         ),
     ]
