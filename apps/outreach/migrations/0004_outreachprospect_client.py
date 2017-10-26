@@ -17,6 +17,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='outreachprospect',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
         ),
     ]

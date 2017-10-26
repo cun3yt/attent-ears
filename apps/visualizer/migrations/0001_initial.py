@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                 ('periscope_dashboard_id', models.CharField(max_length=10)),
                 ('dashboard_name', models.CharField(default='', max_length=255)),
                 ('is_visible', models.BooleanField(default=False)),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
             ],
             options={
                 'db_table': 'periscope_dashboard',
@@ -77,7 +77,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='visualizer.Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='apps.visualizer.Client'),
         ),
         migrations.AddField(
             model_name='user',

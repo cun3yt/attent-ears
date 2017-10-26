@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('email_address', models.CharField(blank=True, default='', max_length=255)),
                 ('phone_number_personal', models.CharField(blank=True, default='', max_length=20)),
                 ('phone_number_work', models.CharField(blank=True, default='', max_length=20)),
-                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
             ],
             options={
                 'db_table': 'outreach_prospect_v1',

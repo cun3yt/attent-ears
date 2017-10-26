@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'apps.api_connection',
     'apps.outreach',
     'apps.salesforce',
-    'visualizer',
+    'apps.visualizer',
     'apps.attent_calendar',
     'sslserver',
     'stringcase',

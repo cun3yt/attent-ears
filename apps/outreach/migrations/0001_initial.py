@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('outreach_id', models.IntegerField(db_index=True)),
-                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
                 ('name', models.CharField(max_length=100, default='', null=True)),
                 ('natural_name', models.CharField(max_length=100, default='', null=True)),
                 ('company_type', models.CharField(default='', max_length=20)),
@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
             name='OutreachMailing',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
                 ('mailing_type', models.CharField(default='', max_length=30)),
                 ('mailbox_address', models.CharField(db_index=True, default='', max_length=255)),
                 ('subject', models.CharField(default='', max_length=255)),
@@ -112,7 +112,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('outreach_id', models.IntegerField(db_index=True)),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
+                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
                 ('email_address', models.CharField(db_index=True, max_length=255)),
                 ('first_name', models.CharField(max_length=30)),
                 ('last_name', models.CharField(max_length=30)),

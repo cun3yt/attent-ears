@@ -1,8 +1,9 @@
-from django.db import models
 from django.contrib.postgres.fields import JSONField
-from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
-from visualizer.models import User
+from django.db import models
 from django.utils import timezone
+
+from apps.visualizer.models import User
+from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
 
 
 class ApiConnection(TimeStampedMixin):

@@ -1,7 +1,7 @@
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+
+from apps.visualizer.models import User, Client
 from core.mixins import TimeStampedMixin
-from visualizer.models import User, Client
 
 
 class OutreachAccount(TimeStampedMixin):
