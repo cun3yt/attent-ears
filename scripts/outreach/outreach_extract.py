@@ -21,17 +21,17 @@ def _setup_syncer(user: User):
 
 
 def full_sync(syncer: OutreachSyncer):
-    print("Running Full Sync")
+    logger.info("Running Full Sync")
     syncer.sync_all_resources()
 
 
 def partial_sync(syncer: OutreachSyncer):
-    print("Running Partial Sync")
+    logger.info("Running Partial Sync")
     syncer.sync_all_resources_partial()
 
 
 def test_sync(syncer: OutreachSyncer):
-    print("Running Test Sync")
+    logger.info("Running Test Sync")
     syncer.test()
 
 
@@ -89,7 +89,7 @@ def run(*args):
             sync_client(client, fn_name)
 
     except Exception as ex:
-        print("Log This: Unexpected Exception Exception Details: {}".format(ex))
-        print("-"*60)
+        logger.error("Log This: Unexpected Exception Exception Details: {}".format(ex))
+        logger.error("-"*60)
         traceback.print_exc(file=sys.stdout)
-        print("-"*60)
+        logger.error("-"*60)

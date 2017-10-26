@@ -1,15 +1,17 @@
-import httplib2
-from apiclient import discovery
-from visualizer.models import User, Client
-from ears.auth_settings import GOOGLE_OAUTH2_KEY, GOOGLE_OAUTH2_SECRET, GOOGLE_TOKEN_URI
-from oauth2client import client
 import datetime
-from django.utils import timezone
-from google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs, \
-    GoogleCalendarEvent
-from googleapiclient.errors import HttpError
 import json
 import sys
+
+import httplib2
+from apiclient import discovery
+from django.utils import timezone
+from googleapiclient.errors import HttpError
+from oauth2client import client
+
+from apps.google_calendar.models import GoogleCalendarListSyncState, GoogleCalendar, GoogleCalendarApiLogs, \
+    GoogleCalendarEvent
+from ears.auth_settings import GOOGLE_OAUTH2_KEY, GOOGLE_OAUTH2_SECRET, GOOGLE_TOKEN_URI
+from visualizer.models import User, Client
 
 
 class RetrySync(Exception):
