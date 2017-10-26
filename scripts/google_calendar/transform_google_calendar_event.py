@@ -1,13 +1,14 @@
+import sys
+import traceback
+
 from django.db.models import F
-from google_calendar.models import GoogleCalendarEvent
+from django.utils import dateparse
+from django.utils import timezone
+
+from apps.google_calendar.models import GoogleCalendarEvent
 from attent_calendar.models import AttentCalendarEvent, InternalAttendee, ExternalAttendee, \
     AttentCalendarEventHasInternalAttendee, AttentCalendarEventHasExternalAttendee
 from core.email_domains import is_email_address_personal
-from django.utils import timezone
-from django.utils import dateparse
-
-import sys
-import traceback
 
 
 def transform_event_to_attent_event(gc_event: GoogleCalendarEvent):

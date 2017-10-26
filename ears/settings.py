@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
-    'google_calendar',
+    'apps.google_calendar',
     'social_django',
     'apps.api_connection',
     'apps.outreach',

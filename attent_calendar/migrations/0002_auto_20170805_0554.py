@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendarevent',
             name='google_calendar_event',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='google_calendar.GoogleCalendarEvent'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.google_calendar.GoogleCalendarEvent'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
@@ -45,6 +45,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendar',
             name='google_calendar',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='google_calendar.GoogleCalendar'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.google_calendar.GoogleCalendar'),
         ),
     ]
