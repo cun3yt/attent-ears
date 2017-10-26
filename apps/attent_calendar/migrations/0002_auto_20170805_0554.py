@@ -20,31 +20,31 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendarevent',
             name='client',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
             name='external_attendees',
-            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='apps.attent_calendar.AttentCalendarEventHasExternalAttendee', to='apps.attent_calendar.ExternalAttendee'),
+            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='attent_calendar.AttentCalendarEventHasExternalAttendee', to='attent_calendar.ExternalAttendee'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
             name='google_calendar_event',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.google_calendar.GoogleCalendarEvent'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='google_calendar.GoogleCalendarEvent'),
         ),
         migrations.AddField(
             model_name='attentcalendarevent',
             name='internal_attendees',
-            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='apps.attent_calendar.AttentCalendarEventHasInternalAttendee', to='apps.attent_calendar.InternalAttendee'),
+            field=models.ManyToManyField(related_name='attent_calendar_events', related_query_name='attent_calendar_event', through='attent_calendar.AttentCalendarEventHasInternalAttendee', to='attent_calendar.InternalAttendee'),
         ),
         migrations.AddField(
             model_name='attentcalendar',
             name='client',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client'),
         ),
         migrations.AddField(
             model_name='attentcalendar',
             name='google_calendar',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.google_calendar.GoogleCalendar'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='google_calendar.GoogleCalendar'),
         ),
     ]
