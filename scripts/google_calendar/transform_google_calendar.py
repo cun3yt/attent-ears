@@ -4,9 +4,15 @@ import traceback
 from apps.attent_calendar.models import AttentCalendar
 from apps.google_calendar.models import GoogleCalendar
 
+import daiquiri
+import logging
+
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
+
 
 def run():
-    print("Script: Transform Google Calendar Script Runs")
+    logger.info("Script: Transform Google Calendar Script Runs")
 
     try:
         # Google Calendars set to be kept in sync get created or updated as Attent Calendar
@@ -22,24 +28,24 @@ def run():
                 }
             )
             msg = "Attent Calendar is Created: {}" if is_created else "Attent Calendar is Updated: {}"
-            print(msg.format(calendar.email_address))
+            logger.info(msg.format(calendar.email_address))
 
         # Calendars with `is_kept_in_sync` == FALSE get deleted
         calendars_to_delete_due_to_sync_state = AttentCalendar.objects.filter(google_calendar__is_kept_in_sync=False)
 
         for attent_calendar in calendars_to_delete_due_to_sync_state:
-            print("Attent Calendar Gets Deleted: {}".format(attent_calendar.email_address))
+            logger.info("Attent Calendar Gets Deleted: {}".format(attent_calendar.email_address))
             attent_calendar.delete()
 
         # Calendars that doesn't exists in GoogleCalendar get deleted
         calendars_to_delete_due_to_non_existence = AttentCalendar.objects.filter(google_calendar__isnull=True)
 
         for attent_calendar in calendars_to_delete_due_to_non_existence:
-            print("Attent Calendar Gets Deleted: {}".format(attent_calendar.email_address))
+            logger.info("Attent Calendar Gets Deleted: {}".format(attent_calendar.email_address))
             attent_calendar.delete()
 
     except Exception as exc:
-        print("Log This: Unexpected Exception Exception Details: {}".format(exc))
-        print("-"*60)
+        logger.error("Log This: Unexpected Exception Exception Details: {}".format(exc))
+        logger.error("-"*60)
         traceback.print_exc(file=sys.stdout)
-        print("-"*60)
+        logger.error("-"*60)

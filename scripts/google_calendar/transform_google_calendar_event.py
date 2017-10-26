@@ -10,9 +10,15 @@ from apps.attent_calendar.models import AttentCalendarEvent, InternalAttendee, E
 from apps.google_calendar.models import GoogleCalendarEvent
 from core.email_domains import is_email_address_personal
 
+import daiquiri
+import logging
+
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
+
 
 def transform_event_to_attent_event(gc_event: GoogleCalendarEvent):
-    print("Transform event id: {}".format(gc_event.id))
+    logger.info("Transform event id: {}".format(gc_event.id))
     client = gc_event.client
 
     start_dict = gc_event.start
@@ -76,7 +82,7 @@ def transform_event_to_attent_event(gc_event: GoogleCalendarEvent):
 
 
 def run():
-    print("Script: Transform Google Calendar Event Script Runs")
+    logger.info("Script: Transform Google Calendar Event Script Runs")
 
     try:
         gc_events_not_processed = GoogleCalendarEvent.objects.filter(process_time__isnull=True)
@@ -94,7 +100,7 @@ def run():
             transform_event_to_attent_event(gc_event)
 
     except Exception as exc:
-        print("Log This: Unexpected Exception Exception Details: {}".format(exc))
-        print("-"*60)
+        logger.error("Log This: Unexpected Exception Exception Details: {}".format(exc))
+        logger.error("-"*60)
         traceback.print_exc(file=sys.stdout)
-        print("-"*60)
+        logger.error("-"*60)
