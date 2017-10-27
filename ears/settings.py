@@ -13,9 +13,12 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 from .auth_settings import *
 
 import os
+import daiquiri
+import logging
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,7 +29,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = (EARS_ENV == 'dev')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'localhost',
+    '.herokuapp.com',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -122,7 +128,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static_files_compiled')
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
-]
+
+STATICFILES_DIRS = (
+    os.path.join(PROJECT_ROOT, 'static'),
+)
+
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
+
+logger.info("BASE_DIR: {}".format(BASE_DIR))
+logger.info("PROJECT_ROOT: {}".format(PROJECT_ROOT))
+logger.info("STATIC_ROOT: {}".format(STATIC_ROOT))
+logger.info("STATIC_URL: {}".format(STATIC_URL))
+logger.info("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
