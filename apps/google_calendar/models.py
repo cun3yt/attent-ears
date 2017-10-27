@@ -1,8 +1,8 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
 
-from visualizer.models import User, Client
+from apps.visualizer.models import User, Client
+from core.mixins import TimeStampedMixin, NoUpdateTimeStampedMixin
 
 
 class GoogleCalendarListSyncState(NoUpdateTimeStampedMixin):

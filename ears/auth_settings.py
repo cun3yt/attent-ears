@@ -1,3 +1,5 @@
+import os
+
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
 
@@ -24,8 +26,8 @@ AUTHENTICATION_BACKENDS = (
 
 AUTH_USER_MODEL = 'visualizer.User'
 
-GOOGLE_OAUTH2_KEY = '415186092964-5l043esdprn1eg936ct7tnoi9rmtgidp.apps.googleusercontent.com'
-GOOGLE_OAUTH2_SECRET = 'Y-KVRINYeqiA94x-BWepCvYX'
+GOOGLE_OAUTH2_KEY = os.environ.get('GOOGLE_OAUTH2_KEY')
+GOOGLE_OAUTH2_SECRET = os.environ.get('GOOGLE_OAUTH2_SECRET')
 GOOGLE_TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_KEY

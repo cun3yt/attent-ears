@@ -1,11 +1,11 @@
 from django.contrib.postgres.fields import JSONField, HStoreField
 from django.db import models
-from core.mixins import TimeStampedMixin
-from visualizer.models import User, Client
 from psqlextra.manager import PostgresManager
 from psqlextra.query import ConflictAction
-
 from stringcase import pascalcase
+
+from apps.visualizer.models import User, Client
+from core.mixins import TimeStampedMixin
 
 
 class SalesforceCustomFieldMapping(TimeStampedMixin):

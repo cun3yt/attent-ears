@@ -1,8 +1,9 @@
 from django.db import models
-from core.mixins import TimeStampedMixin
-from google_calendar.models import GoogleCalendar, GoogleCalendarEvent
-from visualizer.models import Client
+
+from apps.google_calendar.models import GoogleCalendar, GoogleCalendarEvent
+from apps.visualizer.models import Client
 from core.email_domains import is_email_address_personal
+from core.mixins import TimeStampedMixin
 
 
 class AttentCalendar(TimeStampedMixin):

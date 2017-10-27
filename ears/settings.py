@@ -21,16 +21,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '$lxjkm)b-a(9ik)7j#tz-8f2cx0s+w9hhl0^%(11-d2#vdcteg'
+EARS_ENV=os.environ.get('EARS_ENV')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = (EARS_ENV == 'dev')
 
 ALLOWED_HOSTS = ['*']
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -40,13 +36,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
-    'google_calendar',
+    'apps.google_calendar',
     'social_django',
     'apps.api_connection',
     'apps.outreach',
     'apps.salesforce',
-    'visualizer',
-    'attent_calendar',
+    'apps.visualizer',
+    'apps.attent_calendar',
     'sslserver',
     'stringcase',
     'django.contrib.postgres',
@@ -99,7 +95,7 @@ DATABASES = {
         'PORT': os.environ.get('EARS_PROD_DB_PORT'),
     },
     'warehouse': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_redshift_backend',
         'NAME': os.environ.get('EARS_WAREHOUSE_DB_NAME'),
         'USER': os.environ.get('EARS_WAREHOUSE_DB_USER'),
         'PASSWORD': os.environ.get('EARS_WAREHOUSE_DB_PASSWORD'),

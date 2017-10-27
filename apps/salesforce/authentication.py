@@ -1,10 +1,11 @@
-from urllib.parse import urlencode
+import os
 import requests
+from urllib.parse import urlencode
 
 
 SALESFORCE_CONNECTION = {
-    'consumer_key': '3MVG9i1HRpGLXp.oum9utXoxpin3yeYR32TKUm0hdDtB_gcVZbnP7l2H8_QBVHriPBY2jKhWONOGbmIQaGlOz',
-    'consumer_secret': '3745620791270244934',
+    'consumer_key': os.environ.get('SALESFORCE_CONSUMER_KEY'),
+    'consumer_secret': os.environ.get('SALESFORCE_CONSUMER_SECRET'),
     'scope': [
         'full',
         'refresh_token',

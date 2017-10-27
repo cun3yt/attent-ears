@@ -13,13 +13,14 @@
             </div>
         </div>
 
-        <h2>Attent Connector</h2>
+        <h1>Attent Connector</h1>
         <p>
             Welcome {{request.user.first_name}} {{ request.user.last_name }}.
-            Please connect as many services as possible for better insights.
         </p>
+
+        <h2>1. Authentications</h2>
         <p>
-            If this is your first time here an Attent team member will reach out to you shortly.
+            Please connect as many services as possible for better insights.
         </p>
 
         <div class="ui cards">
@@ -41,5 +42,13 @@
                 </div>
             {% endfor %}
         </div>
+
+        <h2>2. Processing Stage</h2>
+
+        <p>Attent team is working on it.</p>
+
+        <h2>3. Slack Bot</h2>
+
+        <p>Slack Bot details will be here...</p>
     </div>
 {% endblock %}
