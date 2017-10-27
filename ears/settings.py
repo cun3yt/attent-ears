@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = (EARS_ENV == 'dev')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['localhost', '*.herokuapp.com']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
