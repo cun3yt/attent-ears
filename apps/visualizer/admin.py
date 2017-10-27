@@ -7,7 +7,7 @@ from .models import User, Client, CLIENT_STATUS_CHOICES
 
 
 class AttentUserAdmin(UserAdmin, AttentAdminModel):
-    readonly_fields = ('email')
+    readonly_fields = ('email',)
 
 
 admin.site.register(User, AttentUserAdmin)
