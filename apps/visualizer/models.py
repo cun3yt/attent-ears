@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db import connections as database_connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from email_split import email_split
@@ -89,8 +90,8 @@ WHERE
   AND salesforce_account.sfdc_id::text = salesforce_opportunity.account_id::text
   AND attent_calendar.client_id = {}
   AND attent_calendar_event.event_type::text = 'External'::character varying::text""".format(self.warehouse_view_name, self.id)
-        from django.db import connections
-        cursor = connections['warehouse'].cursor()
+
+        cursor = database_connection['warehouse'].cursor()
         cursor.execute(sql, [])
 
     def get_warehouse_view_model(self):
