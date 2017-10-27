@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 from .auth_settings import *
 
 import os
+import daiquiri
+import logging
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -135,3 +137,11 @@ STATICFILES_DIRS = (
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
+
+logger.info("BASE_DIR: {}".format(BASE_DIR))
+logger.info("PROJECT_ROOT: {}".format(PROJECT_ROOT))
+logger.info("STATIC_ROOT: {}".format(STATIC_ROOT))
+logger.info("STATIC_URL: {}".format(STATIC_URL))
+logger.info("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
