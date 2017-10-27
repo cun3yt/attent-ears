@@ -18,3 +18,4 @@ stringcase==1.2.0
 unicodecsv==0.14.1
 django-postgres-extra==1.14
 django-redshift-backend==0.7
+whitenoise==3.3.1
