@@ -125,3 +125,4 @@ ENV/
 .idea/
 ears.iml
 .envrc
+ears/static_files_compiled

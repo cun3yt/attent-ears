@@ -7,7 +7,8 @@ from .models import User, Client, CLIENT_STATUS_CHOICES
 
 
 class AttentUserAdmin(UserAdmin, AttentAdminModel):
-    pass
+    readonly_fields = ('email')
+
 
 admin.site.register(User, AttentUserAdmin)
 admin.site.disable_action('delete_selected')
@@ -18,7 +19,9 @@ class ClientForm(forms.ModelForm):
 
 
 class ClientAdmin(AttentAdminModel):
-    fields = ['name', 'website', 'email_domain', 'status']
+    readonly_fields = ('email_domain',)
+
+    fields = ['email_domain', 'name', 'website', 'status']
     list_display = ('id', 'name', 'website', 'email_domain', 'status')
     form = ClientForm
 
