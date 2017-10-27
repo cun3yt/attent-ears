@@ -95,7 +95,7 @@ DATABASES = {
         'PORT': os.environ.get('EARS_PROD_DB_PORT'),
     },
     'warehouse': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_redshift_backend',
         'NAME': os.environ.get('EARS_WAREHOUSE_DB_NAME'),
         'USER': os.environ.get('EARS_WAREHOUSE_DB_USER'),
         'PASSWORD': os.environ.get('EARS_WAREHOUSE_DB_PASSWORD'),

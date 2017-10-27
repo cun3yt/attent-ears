@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('entity_name', models.TextField(db_index=True)),
                 ('standard_fields', django.contrib.postgres.fields.jsonb.JSONField()),
                 ('custom_fields', django.contrib.postgres.fields.jsonb.JSONField()),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.visualizer.Client')),
+                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='visualizer.Client')),
             ],
             options={
                 'db_table': 'salesforce_entity_description',

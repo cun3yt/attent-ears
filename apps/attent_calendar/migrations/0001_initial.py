@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 ('db_updated_at', models.DateTimeField(auto_now=True)),
                 ('db_created_at', models.DateTimeField(auto_now_add=True)),
                 ('response_status', models.CharField(default='', max_length=20)),
-                ('attent_calendar_event', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.attent_calendar.AttentCalendarEvent')),
+                ('attent_calendar_event', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='attent_calendar.AttentCalendarEvent')),
             ],
             options={
                 'db_table': 'attent_calendar_event_has_external_attendee',
@@ -67,7 +67,7 @@ class Migration(migrations.Migration):
                 ('db_updated_at', models.DateTimeField(auto_now=True)),
                 ('db_created_at', models.DateTimeField(auto_now_add=True)),
                 ('response_status', models.CharField(default='', max_length=20)),
-                ('attent_calendar_event', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.attent_calendar.AttentCalendarEvent')),
+                ('attent_calendar_event', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='attent_calendar.AttentCalendarEvent')),
             ],
             options={
                 'db_table': 'attent_calendar_event_has_internal_attendee',
@@ -100,11 +100,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attentcalendareventhasinternalattendee',
             name='internal_attendee',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.attent_calendar.InternalAttendee'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='attent_calendar.InternalAttendee'),
         ),
         migrations.AddField(
             model_name='attentcalendareventhasexternalattendee',
             name='external_attendee',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='apps.attent_calendar.ExternalAttendee'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='attent_calendar.ExternalAttendee'),
         ),
     ]
