@@ -28,8 +28,7 @@ DEBUG = (EARS_ENV == 'dev')
 
 ALLOWED_HOSTS = [
     'localhost',
-    '*.herokuapp.com',
-    'attent-ears.herokuapp.com',
+    '.herokuapp.com',
 ]
 
 INSTALLED_APPS = [
