@@ -2,9 +2,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.urls import reverse
+from django.http import HttpResponse
 from apps.outreach.syncer import outreach_connect_url, outreach_exchange_for_access_token
 from apps.api_connection.models import ApiConnection
 from apps.salesforce.authentication import salesforce_connect_url, salesforce_exchange_for_access_token
+from ears.settings import SLACK_VERIFICATION_TOKEN
+
+from .models import Client
 
 
 def index(request):
@@ -136,3 +140,77 @@ def salesforce_redirect(request):
                                            user=request.user,
                                            defaults={'data': resp.json()})
     return redirect(reverse('settings'))
+
+
+@csrf_exempt
+def slack_command(request):
+    # request.POST
+    # {'token': ['KHj2Wr8dLI7OHnLGWdKGVUmy'],
+    #  'team_id': ['T2MH8D152'],
+    #  'team_domain': ['attent-team'],
+    #  'channel_id': ['C5S03KG10'],
+    #  'channel_name': ['statsbots_test'],
+    #  'user_id': ['U6MH3117U'],
+    # 'user_name': ['cun3yt'],
+    # 'command': ['/attent'],
+    # 'text': ['week'],
+    # 'response_url': ['https://hooks.slack.com/commands/T2MH8D152/264407892822/r99HE4yBWBPp23gC1atLox1r'],
+    # 'trigger_id': ['263447371859.89586443172.30bc6b844847899b3d6b80c57b6d04d5']
+    # }
+    #
+    # {'token': ['KHj2Wr8dLI7OHnLGWdKGVUmy'],
+    # 'team_id': ['T2MH8D152'],
+    # 'team_domain': ['attent-team'],
+    # 'channel_id': ['D6NKTJ32B'],
+    # 'channel_name': ['directmessage'],
+    # 'user_id': ['U6MH3117U'],
+    # 'user_name': ['cun3yt'],
+    # 'command': ['/attent'],
+    # 'text': ["what's up"],
+    # 'response_url': ['https://hooks.slack.com/commands/T2MH8D152/262877675392/bwkqc2q2SdKENHBfwSZ4BBuL'],
+    # 'trigger_id': ['262877675408.89586443172.cf24e6cf8ab6f08d99fb03abbc4837c6']}
+
+    # TODO: Save all requests & responses
+
+    if request.POST.get('token') != SLACK_VERIFICATION_TOKEN:
+        return HttpResponse("Not Allowed", status=406)
+
+    team_id = request.POST.get('team_id')
+    client_qset = Client.objects.filter(slack_team_id=team_id)
+
+    if client_qset.count() < 1:
+        return HttpResponse("Your team is not associated with an Attent client. Please reach out to the Attent team.")
+
+    if client_qset.count() > 1:
+        return HttpResponse("Your team is associated with more than one Attent client. "
+                            "Please reach out to the Attent team.")
+
+    client = client_qset[0]
+
+    if not client.is_active():
+        return HttpResponse("Your company's Attent account is not active. Please reach out to the Attent team.")
+
+    if not client.warehouse_view_name:
+        return HttpResponse("Attent is working on your data. "
+                            "If your saw the same message more than 24 hours ago please reach out to the Attent team.")
+
+    import requests
+    requests.post(request.POST.get('response_url'), json={"text": "something is coming!"})
+
+    WarehouseModel = client.get_warehouse_view_model()
+    from django.db.models import Count
+    set = WarehouseModel.objects.filter(contact_title__isnull=False).values('contact_title').annotate(count=Count('meeting_id')).order_by("-count").using('warehouse')[:5]
+
+    result = "{}: {}\n{}: {}\n{}: {}\n{}: {}".format(
+        set[0].get('contact_title', ''), set[0].get('count', ''),
+        set[1].get('contact_title', ''), set[1].get('count', ''),
+        set[2].get('contact_title', ''), set[2].get('count', ''),
+        set[3].get('contact_title', ''), set[3].get('count', ''))
+
+    response_json = {
+        "text": result,
+        "replace_original": False
+    }
+    requests.post(request.POST.get('response_url'), json=response_json)
+
+    return HttpResponse("Working on it")

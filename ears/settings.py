@@ -35,6 +35,7 @@ DEBUG = (EARS_ENV == 'dev')
 ALLOWED_HOSTS = [
     'localhost',
     '.herokuapp.com',
+    '.ngrok.io',
 ]
 
 INSTALLED_APPS = [
@@ -143,3 +144,7 @@ logger.debug("PROJECT_ROOT: {}".format(PROJECT_ROOT))
 logger.debug("STATIC_ROOT: {}".format(STATIC_ROOT))
 logger.debug("STATIC_URL: {}".format(STATIC_URL))
 logger.debug("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
+
+# Slack
+
+SLACK_VERIFICATION_TOKEN = os.environ.get('SLACK_VERIFICATION_TOKEN')
