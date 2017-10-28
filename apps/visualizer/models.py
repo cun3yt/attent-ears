@@ -45,6 +45,10 @@ class Client(TimeStampedMixin):
     status = models.TextField(choices=CLIENT_STATUS_CHOICES, default=CLIENT_STATUS_APPLIED)
     warehouse_view_name = models.TextField(null=True, default=None)
     warehouse_view_definition = models.TextField(null=True, default=None)
+    slack_team_id = models.TextField(db_index=True, null=True, default=None)
+
+    def is_active(self):
+        return self.status == CLIENT_STATUS_ACTIVE
 
     def create_warehouse_view(self):
         if self.warehouse_view_name is not None:
