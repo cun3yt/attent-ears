@@ -16,6 +16,9 @@ import os
 import daiquiri
 import logging
 
+daiquiri.setup(level=logging.INFO)
+logger = daiquiri.getLogger()
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -135,11 +138,8 @@ STATICFILES_DIRS = (
     os.path.join(PROJECT_ROOT, 'static'),
 )
 
-daiquiri.setup(level=logging.INFO)
-logger = daiquiri.getLogger()
-
-logger.info("BASE_DIR: {}".format(BASE_DIR))
-logger.info("PROJECT_ROOT: {}".format(PROJECT_ROOT))
-logger.info("STATIC_ROOT: {}".format(STATIC_ROOT))
-logger.info("STATIC_URL: {}".format(STATIC_URL))
-logger.info("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
+logger.debug("BASE_DIR: {}".format(BASE_DIR))
+logger.debug("PROJECT_ROOT: {}".format(PROJECT_ROOT))
+logger.debug("STATIC_ROOT: {}".format(STATIC_ROOT))
+logger.debug("STATIC_URL: {}".format(STATIC_URL))
+logger.debug("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
