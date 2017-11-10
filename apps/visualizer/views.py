@@ -8,7 +8,8 @@ from apps.api_connection.models import ApiConnection
 from apps.salesforce.authentication import salesforce_connect_url, salesforce_exchange_for_access_token
 from ears.settings import SLACK_VERIFICATION_TOKEN
 
-from .models import Client
+import django_rq
+from apps.slack.works import answer_slack_question
 
 
 def index(request):
@@ -175,42 +176,43 @@ def slack_command(request):
     if request.POST.get('token') != SLACK_VERIFICATION_TOKEN:
         return HttpResponse("Not Allowed", status=406)
 
-    team_id = request.POST.get('team_id')
-    client_qset = Client.objects.filter(slack_team_id=team_id)
+    req_method = request.POST
 
-    if client_qset.count() < 1:
-        return HttpResponse("Your team is not associated with an Attent client. Please reach out to the Attent team.")
+    django_rq.enqueue(answer_slack_question, req_method.get('team_id'), req_method.get('response_url'))
+    return HttpResponse("Working on it...")
 
-    if client_qset.count() > 1:
-        return HttpResponse("Your team is associated with more than one Attent client. "
-                            "Please reach out to the Attent team.")
 
-    client = client_qset[0]
+def slack_individuals_meetings(date_interval=None):
+    # Acct Name, Num of Employees, Contact name, contact title, Agenda: Yes/No
+    pass
 
-    if not client.is_active():
-        return HttpResponse("Your company's Attent account is not active. Please reach out to the Attent team.")
 
-    if not client.warehouse_view_name:
-        return HttpResponse("Attent is working on your data. "
-                            "If your saw the same message more than 24 hours ago please reach out to the Attent team.")
+def slack_team_meetings_summary(date_interval=None):
+    # {
+    #   rep name => {
+    #       total_oppty,
+    #       seniority => {level => number},
+    #       segment => {level => number}
+    #   }
+    # }
+    pass
 
-    import requests
-    requests.post(request.POST.get('response_url'), json={"text": "something is coming!"})
 
-    WarehouseModel = client.get_warehouse_view_model()
-    from django.db.models import Count
-    set = WarehouseModel.objects.filter(contact_title__isnull=False).values('contact_title').annotate(count=Count('meeting_id')).order_by("-count").using('warehouse')[:5]
+def slack_redirect_uri(request):
+    # TODO What do we need to do here?
 
-    result = "{}: {}\n{}: {}\n{}: {}\n{}: {}".format(
-        set[0].get('contact_title', ''), set[0].get('count', ''),
-        set[1].get('contact_title', ''), set[1].get('count', ''),
-        set[2].get('contact_title', ''), set[2].get('count', ''),
-        set[3].get('contact_title', ''), set[3].get('count', ''))
+    return HttpResponse("redirect uri hit")
 
-    response_json = {
-        "text": result,
-        "replace_original": False
-    }
-    requests.post(request.POST.get('response_url'), json=response_json)
 
-    return HttpResponse("Working on it")
+# Apply date Series  - today, yesterday, this week, this month, this quarter
+#
+# * What are the top 5 cities for meetings this XXXX?
+# * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX?
+# * How many Meetings by Segment this XXXX?
+# * What is the average Opportunity Amount for meetings this XXXX?
+# * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX?
+# * How many Call Connects by person this XXXX?
+# * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
+# * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
+# * What is the average Opportunity Amount for meetings this XXXX by Rep?
+# * How many Meetings by Segment this XXXX by Rep?

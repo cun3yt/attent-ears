@@ -53,10 +53,12 @@ INSTALLED_APPS = [
     'apps.salesforce',
     'apps.visualizer',
     'apps.attent_calendar',
+    'apps.slack',
     'sslserver',
     'stringcase',
     'django.contrib.postgres',
     'psqlextra',
+    'django_rq',
 ]
 
 MIDDLEWARE = [
@@ -148,3 +150,12 @@ logger.debug("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
 # Slack
 
 SLACK_VERIFICATION_TOKEN = os.environ.get('SLACK_VERIFICATION_TOKEN')
+
+RQ_QUEUES = {
+    'default': {
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'DB': 0,
+        'DEFAULT_TIMEOUT': 500,
+    },
+}

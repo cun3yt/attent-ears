@@ -21,6 +21,7 @@ from django.contrib.staticfiles import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url('social', include('social_django.urls', namespace='social')),
+    url(r'^django-rq/', include('django_rq.urls')),
     url(r'^', include('apps.visualizer.urls')),
 ]
 

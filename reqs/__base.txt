@@ -19,3 +19,4 @@ unicodecsv==0.14.1
 django-postgres-extra==1.14
 django-redshift-backend==0.7
 whitenoise==3.3.1
+django-rq==0.9.6
