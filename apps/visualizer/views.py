@@ -145,74 +145,18 @@ def salesforce_redirect(request):
 
 @csrf_exempt
 def slack_command(request):
-    # request.POST
-    # {'token': ['KHj2Wr8dLI7OHnLGWdKGVUmy'],
-    #  'team_id': ['T2MH8D152'],
-    #  'team_domain': ['attent-team'],
-    #  'channel_id': ['C5S03KG10'],
-    #  'channel_name': ['statsbots_test'],
-    #  'user_id': ['U6MH3117U'],
-    # 'user_name': ['cun3yt'],
-    # 'command': ['/attent'],
-    # 'text': ['week'],
-    # 'response_url': ['https://hooks.slack.com/commands/T2MH8D152/264407892822/r99HE4yBWBPp23gC1atLox1r'],
-    # 'trigger_id': ['263447371859.89586443172.30bc6b844847899b3d6b80c57b6d04d5']
-    # }
-    #
-    # {'token': ['KHj2Wr8dLI7OHnLGWdKGVUmy'],
-    # 'team_id': ['T2MH8D152'],
-    # 'team_domain': ['attent-team'],
-    # 'channel_id': ['D6NKTJ32B'],
-    # 'channel_name': ['directmessage'],
-    # 'user_id': ['U6MH3117U'],
-    # 'user_name': ['cun3yt'],
-    # 'command': ['/attent'],
-    # 'text': ["what's up"],
-    # 'response_url': ['https://hooks.slack.com/commands/T2MH8D152/262877675392/bwkqc2q2SdKENHBfwSZ4BBuL'],
-    # 'trigger_id': ['262877675408.89586443172.cf24e6cf8ab6f08d99fb03abbc4837c6']}
-
-    # TODO: Save all requests & responses
-
-    if request.POST.get('token') != SLACK_VERIFICATION_TOKEN:
-        return HttpResponse("Not Allowed", status=406)
-
     req_method = request.POST
 
-    django_rq.enqueue(answer_slack_question, req_method.get('team_id'), req_method.get('response_url'))
+    if req_method.get('token') != SLACK_VERIFICATION_TOKEN:
+        return HttpResponse("Not Allowed", status=406)
+
+    django_rq.enqueue(answer_slack_question, req_method.dict())
+
+    # TODO: Save all requests & responses
     return HttpResponse("Working on it...")
-
-
-def slack_individuals_meetings(date_interval=None):
-    # Acct Name, Num of Employees, Contact name, contact title, Agenda: Yes/No
-    pass
-
-
-def slack_team_meetings_summary(date_interval=None):
-    # {
-    #   rep name => {
-    #       total_oppty,
-    #       seniority => {level => number},
-    #       segment => {level => number}
-    #   }
-    # }
-    pass
 
 
 def slack_redirect_uri(request):
     # TODO What do we need to do here?
 
     return HttpResponse("redirect uri hit")
-
-
-# Apply date Series  - today, yesterday, this week, this month, this quarter
-#
-# * What are the top 5 cities for meetings this XXXX?
-# * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX?
-# * How many Meetings by Segment this XXXX?
-# * What is the average Opportunity Amount for meetings this XXXX?
-# * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX?
-# * How many Call Connects by person this XXXX?
-# * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
-# * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
-# * What is the average Opportunity Amount for meetings this XXXX by Rep?
-# * How many Meetings by Segment this XXXX by Rep?
