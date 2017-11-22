@@ -156,6 +156,21 @@ def slack_command(request):
     return HttpResponse("Working on it...")
 
 
+@csrf_exempt
+def slack_selection(request):
+    req_method = request.POST
+
+    return HttpResponse("I got it!!")
+
+    # if req_method.get('token') != SLACK_VERIFICATION_TOKEN:
+    #     return HttpResponse("Not Allowed", status=406)
+    #
+    # django_rq.enqueue(answer_slack_question, req_method.dict())
+    #
+    # # TODO: Save all requests & responses
+    # return HttpResponse("Working on it...")
+
+
 def slack_redirect_uri(request):
     # TODO What do we need to do here?
 

@@ -18,8 +18,8 @@ from core.mixins import TimeStampedMixin
 from . import exceptions
 from datetime import datetime
 from django.utils.dateformat import format
-from .warehouse_sql_views import create_view_sql_for_event_contact, create_view_sql_for_event_contact_account_oppty, \
-    get_model_for_view_contact, get_model_for_view_oppty
+from .warehouse_sql_views import create_view_sql_for_event_contact, create_view_sql_for_event_oppty, \
+    create_view_sql_for_event_account, get_model_for_view_contact, get_model_for_view_account, get_model_for_view_oppty
 
 from ears.settings import EARS_ENV
 
@@ -46,6 +46,7 @@ class Client(TimeStampedMixin):
     extra_info = JSONField(default={})
     status = models.TextField(choices=CLIENT_STATUS_CHOICES, default=CLIENT_STATUS_APPLIED)
     warehouse_view_name_contact = models.TextField(null=True, default=None)
+    warehouse_view_name_account = models.TextField(null=True, default=None)
     warehouse_view_name_oppty = models.TextField(null=True, default=None)
     slack_team_id = models.TextField(db_index=True, null=True, default=None)
 
@@ -68,13 +69,23 @@ class Client(TimeStampedMixin):
         cursor = database_connection['warehouse'].cursor()
         cursor.execute(sql, [])
 
+    def create_warehouse_view_account(self):
+        if self.warehouse_view_name_account is not None:
+            raise Exception("View Name is not Empty")
+        self.warehouse_view_name_account = "view_{}_account_client_{}_{}".format(EARS_ENV, self.id,
+                                                                                 format(datetime.now(), 'U'))
+        self.save()
+        sql = create_view_sql_for_event_account(self.warehouse_view_name_account, self.id)
+        cursor = database_connection['warehouse'].cursor()
+        cursor.execute(sql, [])
+
     def create_warehouse_view_oppty(self):
         if self.warehouse_view_name_oppty is not None:
             raise Exception("View Name is not Empty")
         self.warehouse_view_name_oppty = "view_{}_oppty_client_{}_{}".format(EARS_ENV, self.id,
                                                                              format(datetime.now(), 'U'))
         self.save()
-        sql = create_view_sql_for_event_contact_account_oppty(self.warehouse_view_name_oppty, self.id)
+        sql = create_view_sql_for_event_oppty(self.warehouse_view_name_oppty, self.id)
         cursor = database_connection['warehouse'].cursor()
         cursor.execute(sql, [])
 
@@ -83,6 +94,12 @@ class Client(TimeStampedMixin):
             self.create_warehouse_view_contact()
         view_name = self.warehouse_view_name_contact
         return get_model_for_view_contact(view_name)
+
+    def get_warehouse_view_model_for_account(self):
+        if self.warehouse_view_name_account is None:
+            self.create_warehouse_view_account()
+        view_name = self.warehouse_view_name_account
+        return get_model_for_view_account(view_name)
 
     def get_warehouse_view_model_for_oppty(self):
         if self.warehouse_view_name_oppty is None:

@@ -8,6 +8,7 @@ urlpatterns = [
     url(r'^oauth/outreach-redirect$', views.outreach_redirect, name='outreach-redirect'),
     url(r'^oauth/salesforce-redirect$', views.salesforce_redirect, name='salesforce-redirect'),
     url(r'^slack-interface/slack-command$', views.slack_command, name='slack_command'),
+    url(r'^slack-interface/slack-selection$', views.slack_selection, name='slack_selection'),
     url(r'^slack-interface/slack-redirect-uri$', views.slack_redirect_uri, name='slack_redirect_uri'),
     url(r'^$', views.index, name='index'),
 ]

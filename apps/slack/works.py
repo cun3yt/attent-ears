@@ -7,6 +7,8 @@ from delorean import Delorean
 import calendar
 import math
 from django.db.models import Count
+import stringcase
+from apps.visualizer.warehouse_sql_views import SQLViewGeneratorForContact
 
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
@@ -49,9 +51,6 @@ def answer_slack_question(params):
 
     if not client.is_active():
         result = "Your company's Attent account is not active. Please reach out to the Attent team."
-    elif not client.warehouse_view_name:
-        result = "Attent is working on your data. If your saw the same message more than 24 hours " \
-                 "ago please reach out to the Attent team."
 
     if result:
         response_json = {
@@ -66,8 +65,99 @@ def answer_slack_question(params):
     result = answer_parsed_question(client, time_slug, command, by_rep)
 
     response_json = {
-        "text": result,
-        "replace_original": True
+        "text": result.get('title', 'Not Specified'),
+        "replace_original": True,
+        "delete_original": True,
+        "attachments": [
+            {
+                "text": "Change Question",
+                "color": "#FF3333",
+                "attachment_type": "default",
+                "callback_id": "question_selection",
+                "actions": [
+                    {
+                        "name": "question_list",
+                        "text": "Select Question...",
+                        "type": "select",
+                        "options": [
+                            {
+                                "text": "Meetings by City",
+                                "value": "city"
+                            },
+                            {
+                                "text": "Meetings by Seniority",
+                                "value": "seniority"
+                            },
+                            {
+                                "text": "Meetings by Segment",
+                                "value": "segment"
+                            },
+                            {
+                                "text": "Meetings by Opportunity",
+                                "value": "oppty"
+                            },
+                            {
+                                "text": "Meetings by Region",
+                                "value": "region"
+                            }
+                        ],
+                        # "selected_options": [
+                        #     {
+                        #         "text": stringcase.capitalcase(time_slug),
+                        #         "value": time_slug
+                        #     }
+                        # ]
+                    }
+                ]
+            },
+            {
+                "text": "Choose time interval",
+                "color": "#FFAAAA",
+                "attachment_type": "default",
+                "callback_id": "time_interval_selection",
+                "actions": [
+                    {
+                        "name": "time_interval_list",
+                        "text": "Select Time Interval...",
+                        "type": "select",
+                        "options": [
+                            {
+                                "text": "Today",
+                                "value": "today"
+                            },
+                            {
+                                "text": "Yesterday",
+                                "value": "yesterday"
+                            },
+                            {
+                                "text": "Week",
+                                "value": "week"
+                            },
+                            {
+                                "text": "Month",
+                                "value": "month"
+                            },
+                            {
+                                "text": "Quarter",
+                                "value": "quarter"
+                            }
+                        ],
+                        "selected_options": [
+                            {
+                                "text": stringcase.capitalcase(time_slug),
+                                "value": time_slug
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "color": "8888FF",
+                "fallback": "Here Comes a Fallback!",
+                "callback_id": "blue-ish callback ID",
+                "fields": result.get('fields', [])
+            },
+        ]
     }
 
     requests.post(response_url, json=response_json)
@@ -93,19 +183,17 @@ def answer_parsed_question(client: Client, time_slug, command, by_rep):
     if command == 'seniority':
         warehouse_model = client.get_warehouse_view_model_for_contact()
         q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
-        return slack_seniority_groups(q_set, by_rep)
+        return slack_seniority_groups(q_set, by_rep, time_slug)
 
     warehouse_model = client.get_warehouse_view_model_for_oppty()
     q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
 
     if command == 'city':
-        result = slack_top_cities(q_set)
+        return slack_top_cities(q_set)
     elif command == 'segment':
-        result = slack_segments(q_set, by_rep)
-    else:
-        result = slack_all_time_titles(warehouse_model)
+        return slack_segments(q_set, by_rep)
 
-    return result
+    return slack_all_time_titles(warehouse_model)
 
 
 def slack_top_cities(q_set):
@@ -115,29 +203,43 @@ def slack_top_cities(q_set):
                      for result in result_set)
 
 
-def slack_seniority_groups(q_set, by_rep):
+def slack_seniority_groups(q_set, by_rep, time_slug):
     if by_rep:
         raise Exception('Not Implemented')
 
-    q_set_limited = q_set.filter(contact_title__isnull=False).values('contact_title'). \
+    q_set_limited = q_set.filter(contact_seniority__isnull=False).values('contact_seniority'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
         order_by("-count").using('warehouse')
 
     print(str(q_set_limited.query))
 
     result_set = q_set_limited[:20]
-    res_str = "\n".join("{}, {}, {}".format(result.get('contact_title', ''), result.get('count', ''),
-                                            result.get('distinct_contacts', ''))
-                        for result in result_set)
-    return "Title, Num of Meetings, Distinct Contacts\n{res_str}".format(res_str=res_str)
+
+    order = SQLViewGeneratorForContact.seniority_to_order()
+
+    ordered_set = sorted(result_set, key=lambda item: order.get(item['contact_seniority'], 100))
+
+    fields = [
+        {
+            "title": "{index}. {title}".format(index=index, title=result.get('contact_seniority', '')),
+            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+                num_meetings=result.get('count', ''),
+                num_contacts=result.get('distinct_contacts', '')),
+            "short": True
+        } for index, result in enumerate(ordered_set, start=1)
+    ]
+
+    return {
+        "title": "How many meetings by seniority (C-Level, VP, Director, etc) "
+                 "this {time_int}?".format(time_int=time_slug),
+        "fields": fields
+    }
 
 
 def slack_segments(q_set, by_rep):
     # 51, 200, 500, 1000
     if by_rep:
         raise Exception('Not Implemented')
-
-    # result_set = q_set.
 
 
 def slack_all_time_titles(WarehouseModel):
