@@ -18,6 +18,14 @@ command_default = 'seniority'
 by_reps = ['rep']
 
 
+def get_option(slug):
+    return {"text": stringcase.capitalcase(slug), "value": slug}
+
+
+def get_options(slug_list):
+    return [get_option(slug) for slug in slug_list]
+
+
 def parse_args(arguments):
     time_slug = None
     command = None
@@ -70,7 +78,7 @@ def answer_slack_question(params):
         "delete_original": True,
         "attachments": [
             {
-                "text": "Change Question",
+                "text": "Meetings By...",
                 "color": "#FF3333",
                 "attachment_type": "default",
                 "callback_id": "question_selection",
@@ -79,34 +87,8 @@ def answer_slack_question(params):
                         "name": "question_list",
                         "text": "Select Question...",
                         "type": "select",
-                        "options": [
-                            {
-                                "text": "Meetings by City",
-                                "value": "city"
-                            },
-                            {
-                                "text": "Meetings by Seniority",
-                                "value": "seniority"
-                            },
-                            {
-                                "text": "Meetings by Segment",
-                                "value": "segment"
-                            },
-                            {
-                                "text": "Meetings by Opportunity",
-                                "value": "oppty"
-                            },
-                            {
-                                "text": "Meetings by Region",
-                                "value": "region"
-                            }
-                        ],
-                        # "selected_options": [
-                        #     {
-                        #         "text": stringcase.capitalcase(time_slug),
-                        #         "value": time_slug
-                        #     }
-                        # ]
+                        "options": get_options(commands),
+                        "selected_options": [get_option(command)],
                     }
                 ]
             },
@@ -120,34 +102,8 @@ def answer_slack_question(params):
                         "name": "time_interval_list",
                         "text": "Select Time Interval...",
                         "type": "select",
-                        "options": [
-                            {
-                                "text": "Today",
-                                "value": "today"
-                            },
-                            {
-                                "text": "Yesterday",
-                                "value": "yesterday"
-                            },
-                            {
-                                "text": "Week",
-                                "value": "week"
-                            },
-                            {
-                                "text": "Month",
-                                "value": "month"
-                            },
-                            {
-                                "text": "Quarter",
-                                "value": "quarter"
-                            }
-                        ],
-                        "selected_options": [
-                            {
-                                "text": stringcase.capitalcase(time_slug),
-                                "value": time_slug
-                            }
-                        ]
+                        "options": get_options(time_slugs),
+                        "selected_options": [get_option(time_slug)],
                     }
                 ]
             },
@@ -185,14 +141,17 @@ def answer_parsed_question(client: Client, time_slug, command, by_rep):
         q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
         return slack_seniority_groups(q_set, by_rep, time_slug)
 
-    warehouse_model = client.get_warehouse_view_model_for_oppty()
-    q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
-
     if command == 'city':
+        warehouse_model = client.get_warehouse_view_model_for_account()
+        q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
         return slack_top_cities(q_set)
-    elif command == 'segment':
+
+    if command == 'segment':
+        warehouse_model = client.get_warehouse_view_model_for_account()
+        q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
         return slack_segments(q_set, by_rep)
 
+    warehouse_model = client.get_warehouse_view_model_for_oppty()
     return slack_all_time_titles(warehouse_model)
 
 
@@ -216,7 +175,6 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
     result_set = q_set_limited[:20]
 
     order = SQLViewGeneratorForContact.seniority_to_order()
-
     ordered_set = sorted(result_set, key=lambda item: order.get(item['contact_seniority'], 100))
 
     fields = [
@@ -229,9 +187,13 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
         } for index, result in enumerate(ordered_set, start=1)
     ]
 
+    question = "How many meetings by seniority (C-Level, VP, Director, etc) this {time_int}?".format(time_int=time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
+
     return {
-        "title": "How many meetings by seniority (C-Level, VP, Director, etc) "
-                 "this {time_int}?".format(time_int=time_slug),
+        "title": question,
         "fields": fields
     }
 
@@ -242,8 +204,8 @@ def slack_segments(q_set, by_rep):
         raise Exception('Not Implemented')
 
 
-def slack_all_time_titles(WarehouseModel):
-    result_set = WarehouseModel.objects.filter(contact_title__isnull=False).values('contact_title').\
+def slack_all_time_titles(warehouse_model):
+    result_set = warehouse_model.objects.filter(contact_title__isnull=False).values('contact_title').\
                      annotate(count=Count('meeting_id')).order_by("-count").using('warehouse')[:5]
 
     result = "\n".join("{}: {}".format(result.get('contact_title', ''), result.get('count', ''))
@@ -311,8 +273,6 @@ def time_slug_to_interval(slug='week'):
 
         return quarter_start.format_datetime(dt_format), quarter_end.format_datetime(dt_format)
 
-
-# Apply date Series  - today, yesterday, this week, this month, this quarter
 
 # >>> * What are the top 5 cities for meetings this XXXX?
 # * How many Call Connects by person this XXXX?
