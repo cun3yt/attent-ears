@@ -150,13 +150,13 @@ class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
 
     targets = [
         {
-            'text': "<51",
-            'matching_op': "ACC.number_of_employees < 51",
+            'text': ">1000",
+            'matching_op': "ACC.number_of_employees > 1000",
             'order': 1
         },
         {
-            'text': "51-200",
-            'matching_op': "51 <= ACC.number_of_employees AND ACC.number_of_employees <= 200",
+            'text': "501-1000",
+            'matching_op': "501 <= ACC.number_of_employees AND ACC.number_of_employees <= 1000",
             'order': 2
         },
         {
@@ -165,13 +165,13 @@ class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
             'order': 3
         },
         {
-            'text': "501-1000",
-            'matching_op': "501 <= ACC.number_of_employees AND ACC.number_of_employees <= 1000",
+            'text': "51-200",
+            'matching_op': "51 <= ACC.number_of_employees AND ACC.number_of_employees <= 200",
             'order': 4
         },
         {
-            'text': ">1000",
-            'matching_op': "ACC.number_of_employees > 1000",
+            'text': "<51",
+            'matching_op': "ACC.number_of_employees < 51",
             'order': 5
         },
         {
@@ -180,6 +180,14 @@ class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
             'order': 6
         },
     ]
+
+    @classmethod
+    def targets_to_order(cls):
+        return {target['text']: target['order'] for target in cls.targets}
+
+    @classmethod
+    def regions_to_order(cls):
+        return {region['text']: region['order'] for region in cls.regions}
 
     def __init__(self, view_name, client_id):
         SQLViewGeneratorForContact.__init__(self, view_name, client_id)

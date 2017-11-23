@@ -161,10 +161,11 @@ def slack_command(request):
 def slack_selection(request):
     req_method = request.POST
 
-    if req_method.get('token') != SLACK_VERIFICATION_TOKEN:
+    payload = json.loads(req_method.get('payload'))
+
+    if payload.get('token') != SLACK_VERIFICATION_TOKEN:
         return HttpResponse("Not Allowed", status=406)
 
-    payload = json.loads(req_method.get('payload'))
     changed_variable, time_slug, command = payload.get('callback_id').split(' ')
     value = payload.get('actions')[0].get('selected_options')[0].get('value')
 

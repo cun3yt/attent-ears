@@ -8,12 +8,12 @@ import calendar
 import math
 from django.db.models import Count
 import stringcase
-from apps.visualizer.warehouse_sql_views import SQLViewGeneratorForContact
+from apps.visualizer.warehouse_sql_views import SQLViewGeneratorForContact, SQLViewGeneratorForAccount
 
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
 time_slug_default = 'week'
-commands = ['city', 'seniority', 'segment', 'opportunity', 'email', 'call']
+commands = ['city', 'seniority', 'segment', 'region', 'opportunity', 'email', 'call']
 command_default = 'seniority'
 by_reps = ['rep']
 
@@ -24,6 +24,13 @@ def get_option(slug):
 
 def get_options(slug_list):
     return [get_option(slug) for slug in slug_list]
+
+
+def question_time_formatting(question, time_slug):
+    time = time_slug
+    if time_slug not in ('today', 'yesterday'):
+        time = "this {}".format(time_slug)
+    return "{question} {time}?".format(question=question, time=time)
 
 
 def parse_args(arguments):
@@ -95,7 +102,7 @@ def answer_slack_question(params):
                 ]
             },
             {
-                "text": "Choose time interval",
+                "text": "Time Interval",
                 "color": "#FFAAAA",
                 "attachment_type": "default",
                 "callback_id": "time {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
@@ -132,22 +139,20 @@ def answer_parsed_question(client: Client, time_slug, command, by_rep):
     if command == 'city':
         warehouse_model = client.get_warehouse_view_model_for_account()
         q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
-        return slack_top_cities(q_set)
+        return slack_top_cities(q_set, time_slug)
 
     if command == 'segment':
         warehouse_model = client.get_warehouse_view_model_for_account()
         q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
-        return slack_segments(q_set, by_rep)
+        return slack_segments(q_set, time_slug, by_rep)
+
+    if command == 'region':
+        warehouse_model = client.get_warehouse_view_model_for_account()
+        q_set = warehouse_model.objects.filter(meeting_date__range=[time_beginning, time_ending])
+        return slack_regions(q_set, time_slug, by_rep)
 
     warehouse_model = client.get_warehouse_view_model_for_oppty()
     return slack_all_time_titles(warehouse_model)
-
-
-def slack_top_cities(q_set):
-    result_set = q_set.values('billing_city').annotate(count=Count('meeting_id', distinct=True)).order_by("-count").\
-                     using('warehouse')[:5]
-    return "\n".join("{}: {}".format(result.get('billing_city', ''), result.get('count', ''))
-                     for result in result_set)
 
 
 def slack_seniority_groups(q_set, by_rep, time_slug):
@@ -156,9 +161,7 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
 
     q_set_limited = q_set.filter(contact_seniority__isnull=False).values('contact_seniority'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
-        order_by("-count").using('warehouse')
-
-    print(str(q_set_limited.query))
+        using('warehouse')
 
     result_set = q_set_limited[:20]
 
@@ -175,7 +178,7 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
         } for index, result in enumerate(ordered_set, start=1)
     ]
 
-    question = "How many meetings by seniority (C-Level, VP, Director, etc) this {time_int}?".format(time_int=time_slug)
+    question = question_time_formatting("How many meetings by seniority (C-Level, VP, Director, etc)", time_slug)
 
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
@@ -186,10 +189,94 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
     }
 
 
-def slack_segments(q_set, by_rep):
-    # 51, 200, 500, 1000
+def slack_top_cities(q_set, time_slug):
+    result_set = q_set.values('billing_city'). \
+        annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
+        order_by("-count").using('warehouse')[:5]
+
+    fields = [
+        {
+            "title": "{index}. {title}".format(index=index, title=result.get('billing_city', '')),
+            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+                num_meetings=result.get('count', ''),
+                num_contacts=result.get('distinct_contacts', '')),
+            "short": True,
+        } for index, result in enumerate(result_set, start=1)
+    ]
+
+    question = question_time_formatting("What are the top 5 cities for meetings", time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
+
+    return {
+        "title": question,
+        "fields": fields
+    }
+
+
+def slack_segments(q_set, time_slug, by_rep):
     if by_rep:
         raise Exception('Not Implemented')
+
+    result_set = q_set.values('account_target'). \
+        annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
+        using('warehouse')
+
+    order = SQLViewGeneratorForAccount.targets_to_order()
+    ordered_set = sorted(result_set, key=lambda item: order.get(item['account_target'], 100))
+
+    fields = [
+        {
+            "title": "{index}. {title}".format(index=index, title=result.get('account_target', '')),
+            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+                num_meetings=result.get('count', ''),
+                num_contacts=result.get('distinct_contacts', '')),
+            "short": True
+        } for index, result in enumerate(ordered_set, start=1)
+    ]
+
+    question = question_time_formatting("How many meetings by segment", time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
+
+    return {
+        "title": question,
+        "fields": fields
+    }
+
+
+def slack_regions(q_set, time_slug, by_rep):
+    if by_rep:
+        raise Exception('Not Implemented')
+
+    result_set = q_set.values('account_region'). \
+        annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
+        using('warehouse')
+
+    order = SQLViewGeneratorForAccount.regions_to_order()
+    ordered_set = sorted(result_set, key=lambda item: order.get(item['account_region'], 100))
+
+    fields = [
+        {
+            "title": "{index}. {title}".format(index=index, title=result.get('account_region', '')),
+            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+                num_meetings=result.get('count', ''),
+                num_contacts=result.get('distinct_contacts', '')),
+            "short": True
+        } for index, result in enumerate(ordered_set, start=1)
+    ]
+
+    question = question_time_formatting("How many meetings by region", time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
+
+    return {
+        "title": question,
+        "fields": fields
+    }
 
 
 def slack_all_time_titles(warehouse_model):
@@ -263,14 +350,17 @@ def time_slug_to_interval(slug='week'):
 
 
 # >>> * What are the top 5 cities for meetings this XXXX?
-# * How many Call Connects by person this XXXX?
-
 # >>> * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX?
-# * How many Meetings by Segment this XXXX?
+# >>> * How many Meetings by Segment this XXXX?
+
+# * How many Call Connects by person this XXXX?
 # * What is the average Opportunity Amount for meetings this XXXX?
 # * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX?
 
+### ============================================================
+
 # * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
-# * What is the average Opportunity Amount for meetings this XXXX by Rep?
 # * How many Meetings by Segment this XXXX by Rep?
+
+# * What is the average Opportunity Amount for meetings this XXXX by Rep?
 # * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
