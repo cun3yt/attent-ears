@@ -10,6 +10,7 @@ from ears.settings import SLACK_VERIFICATION_TOKEN
 
 import django_rq
 from apps.slack.works import answer_slack_question
+import json
 
 
 def index(request):
@@ -160,15 +161,30 @@ def slack_command(request):
 def slack_selection(request):
     req_method = request.POST
 
-    return HttpResponse("I got it!!")
+    if req_method.get('token') != SLACK_VERIFICATION_TOKEN:
+        return HttpResponse("Not Allowed", status=406)
 
-    # if req_method.get('token') != SLACK_VERIFICATION_TOKEN:
-    #     return HttpResponse("Not Allowed", status=406)
-    #
-    # django_rq.enqueue(answer_slack_question, req_method.dict())
-    #
-    # # TODO: Save all requests & responses
-    # return HttpResponse("Working on it...")
+    payload = json.loads(req_method.get('payload'))
+    changed_variable, time_slug, command = payload.get('callback_id').split(' ')
+    value = payload.get('actions')[0].get('selected_options')[0].get('value')
+
+    if changed_variable == 'time':
+        time_slug = value
+    elif changed_variable == 'command':
+        command = value
+
+    text = '{time_slug} {command}'.format(time_slug=time_slug, command=command)
+
+    params = {
+        'team_id': payload.get('team').get('id'),
+        'response_url': payload.get('response_url'),
+        'text': text
+    }
+
+    django_rq.enqueue(answer_slack_question, params)
+
+    # TODO: Save all requests & responses
+    return HttpResponse("Working on {}...".format(text))
 
 
 def slack_redirect_uri(request):

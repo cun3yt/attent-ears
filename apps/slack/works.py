@@ -72,6 +72,8 @@ def answer_slack_question(params):
 
     result = answer_parsed_question(client, time_slug, command, by_rep)
 
+    callback_id_shared_part = "{time_slug} {cmd}".format(time_slug=time_slug, cmd=command)
+
     response_json = {
         "text": result.get('title', 'Not Specified'),
         "replace_original": True,
@@ -81,7 +83,7 @@ def answer_slack_question(params):
                 "text": "Meetings By...",
                 "color": "#FF3333",
                 "attachment_type": "default",
-                "callback_id": "question_selection",
+                "callback_id": "command {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
                 "actions": [
                     {
                         "name": "question_list",
@@ -96,7 +98,7 @@ def answer_slack_question(params):
                 "text": "Choose time interval",
                 "color": "#FFAAAA",
                 "attachment_type": "default",
-                "callback_id": "time_interval_selection",
+                "callback_id": "time {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
                 "actions": [
                     {
                         "name": "time_interval_list",
@@ -117,20 +119,6 @@ def answer_slack_question(params):
     }
 
     requests.post(response_url, json=response_json)
-
-# request.POST
-# {'token': ['KHj2Wr8dLI7OHnLGWdKGVUmy'],
-#  'team_id': ['T2MH8D152'],
-#  'team_domain': ['attent-team'],
-#  'channel_id': ['C5S03KG10'],
-#  'channel_name': ['statsbots_test'],
-#  'user_id': ['U6MH3117U'],
-# 'user_name': ['cun3yt'],
-# 'command': ['/attent'],
-# 'text': ['week'],
-# 'response_url': ['https://hooks.slack.com/commands/T2MH8D152/264407892822/r99HE4yBWBPp23gC1atLox1r'],
-# 'trigger_id': ['263447371859.89586443172.30bc6b844847899b3d6b80c57b6d04d5']
-# }
 
 
 def answer_parsed_question(client: Client, time_slug, command, by_rep):
