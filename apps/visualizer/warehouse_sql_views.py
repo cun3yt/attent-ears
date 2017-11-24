@@ -108,6 +108,11 @@ class SQLViewGeneratorForContact(SQLViewGenerator):
     def seniority_to_order(cls):
         return {level['seniority']: level['order'] for level in cls.seniority_levels}
 
+    @classmethod
+    def default_dict(cls, def_dictionary):
+        def fn(): return {level['seniority']: def_dictionary for level in cls.seniority_levels}
+        return fn
+
 
 class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
     regions = [

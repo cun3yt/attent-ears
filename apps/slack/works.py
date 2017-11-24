@@ -9,6 +9,7 @@ import math
 from django.db.models import Count
 import stringcase
 from apps.visualizer.warehouse_sql_views import SQLViewGeneratorForContact, SQLViewGeneratorForAccount
+from collections import defaultdict
 
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
@@ -155,9 +156,40 @@ def answer_parsed_question(client: Client, time_slug, command, by_rep):
     return slack_all_time_titles(warehouse_model)
 
 
+def slack_seniority_groups_by_rep(q_set, time_slug):
+    q_set_limited = q_set.filter(contact_seniority__isnull=False).values('first_name', 'contact_seniority'). \
+        annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
+        order_by('first_name').using('warehouse')
+
+    res = defaultdict(SQLViewGeneratorForContact.default_dict({'count': 0, 'distinct_contacts': 0}))
+
+    for row in q_set_limited:
+        rep_id = row.get('first_name')
+        seniority = row.get('contact_seniority')
+        res[rep_id][seniority] = {'count': row.get('count'), 'distinct_contacts': row.get('distinct_contacts')}
+
+    fields = [
+        {
+            "title": "{index}. {name}".format(index=index, name=rep_id),
+            "value": "\n".join(["{level}: {count} meeting(s) with {contacts} contacts".format(level=level,
+                                                                                              count=counts['count'],
+                                                                                              contacts=counts['distinct_contacts'])
+                                for level, counts in result.items()]),
+            "short": False
+        } for index, (rep_id, result) in enumerate(res.items(), start=1)
+    ]
+
+    question = question_time_formatting("How many meetings by seniority (C-Level, VP, Director, etc) by rep", time_slug)
+
+    return {
+        "title": question,
+        "fields": fields
+    }
+
+
 def slack_seniority_groups(q_set, by_rep, time_slug):
     if by_rep:
-        raise Exception('Not Implemented')
+        return slack_seniority_groups_by_rep(q_set, time_slug)
 
     q_set_limited = q_set.filter(contact_seniority__isnull=False).values('contact_seniority'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
