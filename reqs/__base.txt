@@ -21,3 +21,5 @@ django-redshift-backend==0.7
 whitenoise==3.3.1
 django-rq==0.9.6
 delorean==0.6.0
+pygal==2.4.0
+CairoSVG==2.1.1

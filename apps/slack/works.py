@@ -14,7 +14,7 @@ from collections import defaultdict
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
 time_slug_default = 'week'
-commands = ['city', 'seniority', 'segment', 'region', 'opportunity', 'email', 'call']
+commands = ['city', 'seniority', 'segment', 'region',]  # 'opportunity', 'email', 'call']
 command_default = 'seniority'
 by_reps = ['rep']
 
@@ -77,53 +77,56 @@ def answer_slack_question(params):
         return
 
     time_slug, command, by_rep = parse_args(params.get('text').lower().split(' '))
-
     result = answer_parsed_question(client, time_slug, command, by_rep)
-
     callback_id_shared_part = "{time_slug} {cmd}".format(time_slug=time_slug, cmd=command)
+
+    attachments = [
+        {
+            "text": "Meetings By...",
+            "color": "#FF3333",
+            "attachment_type": "default",
+            "callback_id": "command {shared_part}".format(shared_part=callback_id_shared_part),
+            "actions": [
+                {
+                    "name": "question_list",
+                    "text": "Select Question...",
+                    "type": "select",
+                    "options": get_options(commands),
+                    "selected_options": [get_option(command)],
+                }
+            ]
+        },
+        {
+            "text": "Time Interval",
+            "color": "#FFAAAA",
+            "attachment_type": "default",
+            "callback_id": "time {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
+            "actions": [
+                {
+                    "name": "time_interval_list",
+                    "text": "Select Time Interval...",
+                    "type": "select",
+                    "options": get_options(time_slugs),
+                    "selected_options": [get_option(time_slug)],
+                }
+            ]
+        },
+        {
+            "color": "8888FF",
+            "fallback": "Here Comes a Fallback!",
+            "callback_id": "blue-ish callback ID",
+            "fields": result.get('fields', []),
+        },
+    ]
+
+    if result.get('chart_url'):
+        attachments[-1]["image_url"] = result.get('chart_url')
 
     response_json = {
         "text": result.get('title', 'Not Specified'),
         "replace_original": True,
         "delete_original": True,
-        "attachments": [
-            {
-                "text": "Meetings By...",
-                "color": "#FF3333",
-                "attachment_type": "default",
-                "callback_id": "command {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
-                "actions": [
-                    {
-                        "name": "question_list",
-                        "text": "Select Question...",
-                        "type": "select",
-                        "options": get_options(commands),
-                        "selected_options": [get_option(command)],
-                    }
-                ]
-            },
-            {
-                "text": "Time Interval",
-                "color": "#FFAAAA",
-                "attachment_type": "default",
-                "callback_id": "time {callback_id_shared_part}".format(callback_id_shared_part=callback_id_shared_part),
-                "actions": [
-                    {
-                        "name": "time_interval_list",
-                        "text": "Select Time Interval...",
-                        "type": "select",
-                        "options": get_options(time_slugs),
-                        "selected_options": [get_option(time_slug)],
-                    }
-                ]
-            },
-            {
-                "color": "8888FF",
-                "fallback": "Here Comes a Fallback!",
-                "callback_id": "blue-ish callback ID",
-                "fields": result.get('fields', [])
-            },
-        ]
+        "attachments": attachments
     }
 
     requests.post(response_url, json=response_json)
@@ -160,26 +163,33 @@ def slack_seniority_groups_by_rep(q_set, time_slug):
     q_set_limited = q_set.filter(contact_seniority__isnull=False).values('first_name', 'contact_seniority'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
         order_by('first_name').using('warehouse')
+    # "Group by" can include Role. Also output can include email in case there is no "first_name" & "role"
 
     res = defaultdict(SQLViewGeneratorForContact.default_dict({'count': 0, 'distinct_contacts': 0}))
 
     for row in q_set_limited:
-        rep_id = row.get('first_name')
+        rep_id = row.get('first_name') if row.get('first_name', None) else 'Unknown'
         seniority = row.get('contact_seniority')
         res[rep_id][seniority] = {'count': row.get('count'), 'distinct_contacts': row.get('distinct_contacts')}
+
+    line = "{level}: {count} meeting(s) with {contacts} contact(s)"
+    line_zero_state = "{level}: no meetings"
 
     fields = [
         {
             "title": "{index}. {name}".format(index=index, name=rep_id),
-            "value": "\n".join(["{level}: {count} meeting(s) with {contacts} contacts".format(level=level,
-                                                                                              count=counts['count'],
-                                                                                              contacts=counts['distinct_contacts'])
+            "value": "\n".join([(line if counts['count'] > 0 else line_zero_state).format(level=level,
+                                                                                          count=counts['count'],
+                                                                                          contacts=counts['distinct_contacts'])
                                 for level, counts in result.items()]),
-            "short": False
+            "short": True
         } for index, (rep_id, result) in enumerate(res.items(), start=1)
     ]
 
     question = question_time_formatting("How many meetings by seniority (C-Level, VP, Director, etc) by rep", time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
     return {
         "title": question,
@@ -191,19 +201,19 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
     if by_rep:
         return slack_seniority_groups_by_rep(q_set, time_slug)
 
-    q_set_limited = q_set.filter(contact_seniority__isnull=False).values('contact_seniority'). \
+    result_set = q_set.filter(contact_seniority__isnull=False).values('contact_seniority'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
-        using('warehouse')
+        using('warehouse')[:20]
 
-    result_set = q_set_limited[:20]
+    ordered_set = SQLViewGeneratorForContact.order_list_by_seniority_level(result_set, 'contact_seniority')
 
-    order = SQLViewGeneratorForContact.seniority_to_order()
-    ordered_set = sorted(result_set, key=lambda item: order.get(item['contact_seniority'], 100))
+    line = "{num_meetings} Meeting(s) with {num_contacts} contact(s)"
+    line_zero_state = "No Meetings"
 
     fields = [
         {
             "title": "{index}. {title}".format(index=index, title=result.get('contact_seniority', '')),
-            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+            "value": (line if result.get('count', 0) > 0 else line_zero_state).format(
                 num_meetings=result.get('count', ''),
                 num_contacts=result.get('distinct_contacts', '')),
             "short": True
@@ -215,21 +225,36 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
+    graph_values = {
+        "meetings_series": ",".join([str(result.get('count', 0)) for result in ordered_set]),
+        "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in ordered_set]),
+        "seniority": "|".join([result.get('contact_seniority', '') for result in ordered_set])
+    }
+
+    series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
+    titles = "|{}".format(graph_values["seniority"])
+
     return {
         "title": question,
-        "fields": fields
+        "fields": fields,
+        "chart_url": "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270,"
+                     "1&chxt=y,x&chxl=1:{titles}&chdl=Meetings|Contacts&chma=20,0,20,20".format(series=series,
+                                                                                                titles=titles),
     }
 
 
 def slack_top_cities(q_set, time_slug):
-    result_set = q_set.values('billing_city'). \
+    result_set = q_set.filter(billing_city__isnull=False).values('billing_city'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
-        order_by("-count").using('warehouse')[:5]
+        order_by('-count', '-distinct_contacts').using('warehouse')[:5]
+
+    line = "{num_meetings} Meeting(s) with {num_contacts} contact(s)"
+    line_zero_state = "No Meetings"
 
     fields = [
         {
             "title": "{index}. {title}".format(index=index, title=result.get('billing_city', '')),
-            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+            "value": (line if result.get('count', 0) > 0 else line_zero_state).format(
                 num_meetings=result.get('count', ''),
                 num_contacts=result.get('distinct_contacts', '')),
             "short": True,
@@ -241,9 +266,23 @@ def slack_top_cities(q_set, time_slug):
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
+    from urllib.parse import quote
+
+    graph_values = {
+        "meetings_series": ",".join([str(result.get('count', 0)) for result in result_set]),
+        "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in result_set]),
+        "city": "|".join([str(quote(result.get('billing_city', ''))) for result in result_set])
+    }
+
+    series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
+    titles = "|{}".format(graph_values["city"])
+
     return {
         "title": question,
-        "fields": fields
+        "fields": fields,
+        "chart_url": "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270,"
+                     "1&chxt=y,x&chxl=1:{titles}&chdl=Meetings|Contacts&chma=20,0,20,20".format(series=series,
+                                                                                                titles=titles),
     }
 
 
@@ -255,13 +294,15 @@ def slack_segments(q_set, time_slug, by_rep):
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
         using('warehouse')
 
-    order = SQLViewGeneratorForAccount.targets_to_order()
-    ordered_set = sorted(result_set, key=lambda item: order.get(item['account_target'], 100))
+    ordered_set = SQLViewGeneratorForAccount.order_list_by_targets(result_set, 'account_target')
+
+    line = "{num_meetings} Meeting(s) with {num_contacts} contact(s)"
+    line_zero_state = "No Meetings"
 
     fields = [
         {
             "title": "{index}. {title}".format(index=index, title=result.get('account_target', '')),
-            "value": "{num_meetings} Meeting(s) with {num_contacts} contact(s)".format(
+            "value": (line if result.get('count', 0) > 0 else line_zero_state).format(
                 num_meetings=result.get('count', ''),
                 num_contacts=result.get('distinct_contacts', '')),
             "short": True
@@ -287,8 +328,7 @@ def slack_regions(q_set, time_slug, by_rep):
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
         using('warehouse')
 
-    order = SQLViewGeneratorForAccount.regions_to_order()
-    ordered_set = sorted(result_set, key=lambda item: order.get(item['account_region'], 100))
+    ordered_set = SQLViewGeneratorForAccount.order_list_by_regions(result_set, 'account_region')
 
     fields = [
         {
@@ -318,16 +358,6 @@ def slack_all_time_titles(warehouse_model):
     result = "\n".join("{}: {}".format(result.get('contact_title', ''), result.get('count', ''))
                        for result in result_set)
     return result
-
-
-# Acct Name, Num of Employees, Contact name, contact title, Agenda: Yes/No
-# {
-#   rep name => {
-#       total_oppty,
-#       seniority => {level => number},
-#       segment => {level => number}
-#   }
-# }
 
 
 def time_slug_to_interval(slug='week'):
@@ -389,7 +419,7 @@ def time_slug_to_interval(slug='week'):
 # * What is the average Opportunity Amount for meetings this XXXX?
 # * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX?
 
-### ============================================================
+# ============================================================
 
 # * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
 # * How many Meetings by Segment this XXXX by Rep?

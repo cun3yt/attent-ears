@@ -1,6 +1,15 @@
 from django.db import models
 
 
+def sort_result_set(result_set, result_set_key, level_dictionary, level_key, order_key):
+    level_key_to_order_map = {level[level_key]: level[order_key] for level in level_dictionary}
+    return sorted(result_set, key=lambda item: level_key_to_order_map.get(item[result_set_key], 1000))
+
+
+def sort_list_by(lst, key):
+    return sorted(lst, key=lambda item: item.get(key, 1000))
+
+
 class SQLViewGenerator:
     def __init__(self, view_name, client_id):
         self.view_name = view_name
@@ -24,44 +33,52 @@ class SQLViewGenerator:
 class SQLViewGeneratorForContact(SQLViewGenerator):
     seniority_levels = [
         {
-            'seniority': 'Other',
-            'sql_generated': False,
-            'order': 8
-        },
-        {
-            'seniority': 'Null',
-            'matching_op': 'is null',
-            'order': 7
-        },
-        {
-            'seniority': 'Coordinator',
-            'matching_op': "~* '.*coordinator.*'",
-            'order': 6
-        },
-        {
-            'seniority': 'Supervisor',
-            'matching_op': "~* '.*supervisor.*'",
-            'order': 5
-        },
-        {
-            'seniority': 'Manager',
-            'matching_op': "~* '.*(manager|mgr).*'",
-            'order': 4
-        },
-        {
-            'seniority': 'Director',
-            'matching_op': "~* '.*(head|dir).*'",
-            'order': 3
+            'seniority': 'C-level',
+            'matching_op': "~* '.*(president|chief|ceo|cfo|cio|cto|chro|cpo|co-founder|coo).*'",
+            'order': 1,                 # the lower the order, the higher the importance
+            'sql_case_order': 8,
         },
         {
             'seniority': 'VP',
             'matching_op': "~* '.*(vp|vice president).*'",
-            'order': 2
+            'order': 2,
+            'sql_case_order': 7,
         },
         {
-            'seniority': 'C-level',
-            'matching_op': "~* '.*(president|chief|ceo|cfo|cio|cto|chro|cpo|co-founder|coo).*'",
-            'order': 1
+            'seniority': 'Director',
+            'matching_op': "~* '.*(head|dir).*'",
+            'order': 3,
+            'sql_case_order': 6,
+        },
+        {
+            'seniority': 'Manager',
+            'matching_op': "~* '.*(manager|mgr).*'",
+            'order': 4,
+            'sql_case_order': 5,
+        },
+        {
+            'seniority': 'Supervisor',
+            'matching_op': "~* '.*supervisor.*'",
+            'order': 5,
+            'sql_case_order': 4,
+        },
+        {
+            'seniority': 'Coordinator',
+            'matching_op': "~* '.*coordinator.*'",
+            'order': 6,
+            'sql_case_order': 3,
+        },
+        {
+            'seniority': 'Null',
+            'matching_op': 'is null',
+            'order': 7,
+            'sql_case_order': 2,
+        },
+        {
+            'seniority': 'Other',
+            'sql_generated': False,
+            'order': 8,
+            'sql_case_order': 1,
         },
     ]
 
@@ -87,7 +104,8 @@ class SQLViewGeneratorForContact(SQLViewGenerator):
 
         seniority_cases = " ".join(["when C.title {matching_op} then '{sen}'"
                                    .format(matching_op=s_level.get('matching_op'),
-                                           sen=s_level.get('seniority')) for s_level in self.seniority_levels
+                                           sen=s_level.get('seniority')) for s_level in
+                                    sort_list_by(self.seniority_levels, 'sql_case_order')
                                     if s_level.get('sql_generated', True)])
 
         self.select_list = [
@@ -105,12 +123,14 @@ class SQLViewGeneratorForContact(SQLViewGenerator):
         ]
 
     @classmethod
-    def seniority_to_order(cls):
-        return {level['seniority']: level['order'] for level in cls.seniority_levels}
+    def order_list_by_seniority_level(cls, result_set, result_set_key):
+        return sort_result_set(result_set, result_set_key, cls.seniority_levels, 'seniority', 'order')
 
     @classmethod
     def default_dict(cls, def_dictionary):
-        def fn(): return {level['seniority']: def_dictionary for level in cls.seniority_levels}
+        levels = sort_list_by(cls.seniority_levels, 'order')
+
+        def fn(): return {level['seniority']: def_dictionary for level in levels}
         return fn
 
 
@@ -187,12 +207,12 @@ class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
     ]
 
     @classmethod
-    def targets_to_order(cls):
-        return {target['text']: target['order'] for target in cls.targets}
+    def order_list_by_regions(cls, result_set, result_set_key):
+        return sort_result_set(result_set, result_set_key, cls.regions, 'text', 'order')
 
     @classmethod
-    def regions_to_order(cls):
-        return {region['text']: region['order'] for region in cls.regions}
+    def order_list_by_targets(cls, result_set, result_set_key):
+        return sort_result_set(result_set, result_set_key, cls.targets, 'text', 'order')
 
     def __init__(self, view_name, client_id):
         SQLViewGeneratorForContact.__init__(self, view_name, client_id)

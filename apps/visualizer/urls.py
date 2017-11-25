@@ -10,5 +10,6 @@ urlpatterns = [
     url(r'^slack-interface/slack-command$', views.slack_command, name='slack_command'),
     url(r'^slack-interface/slack-selection$', views.slack_selection, name='slack_selection'),
     url(r'^slack-interface/slack-redirect-uri$', views.slack_redirect_uri, name='slack_redirect_uri'),
+    url(r'^slack-interface/sample-chart$', views.sample_chart, name='sample_chart'),
     url(r'^$', views.index, name='index'),
 ]
