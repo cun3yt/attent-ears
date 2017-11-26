@@ -229,21 +229,10 @@ def slack_seniority_groups(q_set, by_rep, time_slug):
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
-    graph_values = {
-        "meetings_series": ",".join([str(result.get('count', 0)) for result in ordered_set]),
-        "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in ordered_set]),
-        "seniority": "|".join([result.get('contact_seniority', '') for result in ordered_set])
-    }
-
-    series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
-    titles = "|{}".format(graph_values["seniority"])
-
     return {
         "title": question,
         "fields": fields,
-        "chart_url": "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270,"
-                     "1&chxt=y,x&chxl=1:{titles}&chdl=Meetings|Contacts&chma=20,0,20,20".format(series=series,
-                                                                                                titles=titles),
+        "chart_url": chart_url_for_meeting_contact(ordered_set, 'contact_seniority'),
     }
 
 
@@ -270,21 +259,10 @@ def slack_top_cities(q_set, time_slug):
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
-    graph_values = {
-        "meetings_series": ",".join([str(result.get('count', 0)) for result in result_set]),
-        "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in result_set]),
-        "city": "|".join([quote(str(result.get('billing_city', ''))) for result in result_set])
-    }
-
-    series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
-    titles = "|{}".format(graph_values["city"])
-
     return {
         "title": question,
         "fields": fields,
-        "chart_url": "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270,"
-                     "1&chxt=y,x&chxl=1:{titles}&chdl=Meetings|Contacts&chma=20,0,20,20".format(series=series,
-                                                                                                titles=titles),
+        "chart_url": chart_url_for_meeting_contact(result_set, 'billing_city'),
     }
 
 
@@ -356,7 +334,8 @@ def slack_segments(q_set, time_slug, by_rep):
 
     return {
         "title": question,
-        "fields": fields
+        "fields": fields,
+        "chart_url": chart_url_for_meeting_contact(ordered_set, 'account_target'),
     }
 
 
@@ -387,8 +366,23 @@ def slack_regions(q_set, time_slug, by_rep):
 
     return {
         "title": question,
-        "fields": fields
+        "fields": fields,
+        "chart_url": chart_url_for_meeting_contact(ordered_set, 'account_region'),
     }
+
+
+def chart_url_for_meeting_contact(result_set, group_by):
+    graph_values = {
+        "meetings_series": ",".join([str(result.get('count', 0)) for result in result_set]),
+        "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in result_set]),
+        "titles": "|".join([quote(str(result.get(group_by, ''))) for result in result_set])
+    }
+
+    series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
+
+    return "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270," \
+           "1&chxt=y,x&chxl=1:|{titles}&chdl=Meetings|Contacts&" \
+           "chma=20,0,20,20".format(series=series, titles=graph_values["titles"])
 
 
 def slack_all_time_titles(warehouse_model):
