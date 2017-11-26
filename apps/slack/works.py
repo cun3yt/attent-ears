@@ -10,17 +10,20 @@ from django.db.models import Count
 import stringcase
 from apps.visualizer.warehouse_sql_views import SQLViewGeneratorForContact, SQLViewGeneratorForAccount
 from collections import defaultdict
+from urllib.parse import quote
 
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
-time_slug_default = 'week'
-commands = ['city', 'seniority', 'segment', 'region',]  # 'opportunity', 'email', 'call']
+time_slug_default = 'quarter'
+#'opportunity','email','call'
+commands = ['seniority', 'seniority & rep', 'segment', 'segment & rep', 'city', 'region']
 command_default = 'seniority'
 by_reps = ['rep']
 
 
 def get_option(slug):
-    return {"text": stringcase.capitalcase(slug), "value": slug}
+    text = ' '.join([stringcase.capitalcase(s) for s in slug.split(' ')])
+    return {"text": text, "value": slug}
 
 
 def get_options(slug_list):
@@ -92,7 +95,8 @@ def answer_slack_question(params):
                     "text": "Select Question...",
                     "type": "select",
                     "options": get_options(commands),
-                    "selected_options": [get_option(command)],
+                    "selected_options": [get_option(("{cmd} & {by_rep}" if by_rep else "{cmd}").format(cmd=command,
+                                                                                                       by_rep=by_rep))],
                 }
             ]
         },
@@ -266,12 +270,10 @@ def slack_top_cities(q_set, time_slug):
     if len(fields) < 1:
         return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
 
-    from urllib.parse import quote
-
     graph_values = {
         "meetings_series": ",".join([str(result.get('count', 0)) for result in result_set]),
         "contacts_series": ",".join([str(result.get('distinct_contacts', 0)) for result in result_set]),
-        "city": "|".join([str(quote(result.get('billing_city', ''))) for result in result_set])
+        "city": "|".join([quote(str(result.get('billing_city', ''))) for result in result_set])
     }
 
     series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
@@ -286,9 +288,47 @@ def slack_top_cities(q_set, time_slug):
     }
 
 
+def slack_segments_by_rep(q_set, time_slug):
+    q_set_limited = q_set.values('first_name', 'account_target'). \
+        annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
+        order_by('first_name').using('warehouse')
+    # "Group by" can include Role. Also output can include email in case there is no "first_name" & "role"
+
+    res = defaultdict(SQLViewGeneratorForAccount.default_targets_dict({'count': 0, 'distinct_contacts': 0}))
+
+    for row in q_set_limited:
+        rep_id = row.get('first_name') if row.get('first_name', None) else 'Unknown'
+        target = row.get('account_target')
+        res[rep_id][target] = {'count': row.get('count'), 'distinct_contacts': row.get('distinct_contacts')}
+
+    line = "{level}: {count} meeting(s) with {contacts} contact(s)"
+    line_zero_state = "{level}: no meetings"
+
+    fields = [
+        {
+            "title": "{index}. {name}".format(index=index, name=rep_id),
+            "value": "\n".join([(line if counts['count'] > 0 else line_zero_state).format(level=level,
+                                                                                          count=counts['count'],
+                                                                                          contacts=counts['distinct_contacts'])
+                                for level, counts in result.items()]),
+            "short": True
+        } for index, (rep_id, result) in enumerate(res.items(), start=1)
+    ]
+
+    question = question_time_formatting("How many meetings by segments by rep", time_slug)
+
+    if len(fields) < 1:
+        return {"title": "{q}\nThere is no meeting data for this time interval.".format(q=question)}
+
+    return {
+        "title": question,
+        "fields": fields
+    }
+
+
 def slack_segments(q_set, time_slug, by_rep):
     if by_rep:
-        raise Exception('Not Implemented')
+        return slack_segments_by_rep(q_set, time_slug)
 
     result_set = q_set.values('account_target'). \
         annotate(count=Count('meeting_id', distinct=True), distinct_contacts=Count('email', distinct=True)). \
@@ -421,8 +461,8 @@ def time_slug_to_interval(slug='week'):
 
 # ============================================================
 
-# * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
-# * How many Meetings by Segment this XXXX by Rep?
+# >>> * How many Meetings by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?
+# >>> * How many Meetings by Segment this XXXX by Rep?
 
 # * What is the average Opportunity Amount for meetings this XXXX by Rep?
 # * How many Email Replies by Seniority (C-Level, VP, Director, etc) this XXXX by Rep?

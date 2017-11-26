@@ -214,6 +214,13 @@ class SQLViewGeneratorForAccount(SQLViewGeneratorForContact):
     def order_list_by_targets(cls, result_set, result_set_key):
         return sort_result_set(result_set, result_set_key, cls.targets, 'text', 'order')
 
+    @classmethod
+    def default_targets_dict(cls, def_dictionary):
+        targets = sort_list_by(cls.targets, 'order')
+
+        def fn(): return {target['text']: def_dictionary for target in targets}
+        return fn
+
     def __init__(self, view_name, client_id):
         SQLViewGeneratorForContact.__init__(self, view_name, client_id)
 
