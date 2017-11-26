@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 time_slugs = ['today', 'yesterday', 'week', 'month', 'quarter']
 time_slug_default = 'quarter'
-#'opportunity','email','call'
+#'opportunity', 'email replies','call connects', 'opportunity by rep', 'email reply by seniority by rep'
 commands = ['seniority', 'seniority & rep', 'segment', 'segment & rep', 'city', 'region']
 command_default = 'seniority'
 by_reps = ['rep']
@@ -380,9 +380,11 @@ def chart_url_for_meeting_contact(result_set, group_by):
 
     series = "{}|{}".format(graph_values["meetings_series"], graph_values["contacts_series"])
 
-    return "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270," \
-           "1&chxt=y,x&chxl=1:|{titles}&chdl=Meetings|Contacts&" \
-           "chma=20,0,20,20".format(series=series, titles=graph_values["titles"])
+    chart_url = "https://image-charts.com/chart?cht=bvg&chs=990x400&chd=t:{series}&chf=b0,lg,0,4ECDC4,0,556270," \
+                "1&chxt=y,x&chxl=1:|{titles}&chdl=Meetings|Contacts&" \
+                "chma=20,0,20,20&chg=20,50&chxr=0,100".format(series=series, titles=graph_values["titles"])
+
+    return chart_url
 
 
 def slack_all_time_titles(warehouse_model):
