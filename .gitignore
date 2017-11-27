@@ -126,3 +126,4 @@ ENV/
 ears.iml
 .envrc
 ears/static_files_compiled
+dump.rdb
