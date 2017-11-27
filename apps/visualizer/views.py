@@ -11,6 +11,7 @@ from ears.settings import SLACK_VERIFICATION_TOKEN
 import django_rq
 from apps.slack.works import answer_slack_question
 import json
+import os
 
 
 def index(request):
@@ -109,6 +110,7 @@ def settings(request):
 
     context = {
         'api_connections': api_connections,
+        'slack_client_id': os.environ.get('SLACK_ATTENT_BOT_CLIENT_ID')
     }
 
     return render(request, 'settings.html', context=context)
