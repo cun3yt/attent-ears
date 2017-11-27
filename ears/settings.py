@@ -153,9 +153,9 @@ SLACK_VERIFICATION_TOKEN = os.environ.get('SLACK_VERIFICATION_TOKEN')
 
 RQ_QUEUES = {
     'default': {
-        'HOST': 'localhost',
-        'PORT': 6379,
-        'DB': 0,
+        'HOST': os.environ.get('RQ_DEFAULT_HOST'),
+        'PORT': os.environ.get('RQ_DEFAULT_PORT'),
+        'DB': os.environ.get('RQ_DEFAULT_DB'),
         'DEFAULT_TIMEOUT': 500,
     },
 }
