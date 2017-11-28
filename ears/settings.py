@@ -156,6 +156,7 @@ RQ_QUEUES = {
         'HOST': os.environ.get('RQ_DEFAULT_HOST'),
         'PORT': os.environ.get('RQ_DEFAULT_PORT'),
         'DB': os.environ.get('RQ_DEFAULT_DB'),
+        'PASSWORD': os.environ.get('RQ_DEFAULT_PASSWORD'),
         'DEFAULT_TIMEOUT': 500,
     },
 }
