@@ -6,12 +6,11 @@ from django.http import HttpResponse
 from apps.outreach.syncer import outreach_connect_url, outreach_exchange_for_access_token
 from apps.api_connection.models import ApiConnection
 from apps.salesforce.authentication import salesforce_connect_url, salesforce_exchange_for_access_token
-from ears.settings import SLACK_VERIFICATION_TOKEN
+from ears.env_variables import SLACK_VERIFICATION_TOKEN, SLACK_ATTENT_BOT_CLIENT_ID
 
 import django_rq
 from apps.slack.works import answer_slack_question
 import json
-import os
 
 
 def index(request):
@@ -78,7 +77,7 @@ def settings(request):
 
     context = {
         'api_connections': api_connections,
-        'slack_client_id': os.environ.get('SLACK_ATTENT_BOT_CLIENT_ID')
+        'slack_client_id': SLACK_ATTENT_BOT_CLIENT_ID
     }
 
     return render(request, 'settings.html', context=context)

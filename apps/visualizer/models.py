@@ -21,7 +21,7 @@ from django.utils.dateformat import format
 from .warehouse_sql_views import create_view_sql_for_event_contact, create_view_sql_for_event_oppty, \
     create_view_sql_for_event_account, get_model_for_view_contact, get_model_for_view_account, get_model_for_view_oppty
 
-from ears.settings import EARS_ENV
+from ears.env_variables import EARS_ENV
 
 
 CLIENT_STATUS_APPLIED = 'Applied'

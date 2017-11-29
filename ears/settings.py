@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
+from .env_variables import *
 from .auth_settings import *
 
 import os
@@ -22,13 +23,6 @@ logger = daiquiri.getLogger()
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
-
-EARS_ENV=os.environ.get('EARS_ENV')
-SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = (EARS_ENV == 'dev')
 
@@ -97,19 +91,19 @@ WSGI_APPLICATION = 'ears.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'psqlextra.backend',
-        'NAME': os.environ.get('EARS_PROD_DB_NAME'),
-        'USER': os.environ.get('EARS_PROD_DB_USER'),
-        'PASSWORD': os.environ.get('EARS_PROD_DB_PASSWORD'),
-        'HOST': os.environ.get('EARS_PROD_DB_HOST'),
-        'PORT': os.environ.get('EARS_PROD_DB_PORT'),
+        'NAME': EARS_PROD_DB_NAME,
+        'USER': EARS_PROD_DB_USER,
+        'PASSWORD': EARS_PROD_DB_PASSWORD,
+        'HOST': EARS_PROD_DB_HOST,
+        'PORT': EARS_PROD_DB_PORT,
     },
     'warehouse': {
         'ENGINE': 'django_redshift_backend',
-        'NAME': os.environ.get('EARS_WAREHOUSE_DB_NAME'),
-        'USER': os.environ.get('EARS_WAREHOUSE_DB_USER'),
-        'PASSWORD': os.environ.get('EARS_WAREHOUSE_DB_PASSWORD'),
-        'HOST': os.environ.get('EARS_WAREHOUSE_DB_HOST'),
-        'PORT': os.environ.get('EARS_WAREHOUSE_DB_PORT'),
+        'NAME': EARS_WAREHOUSE_DB_NAME,
+        'USER': EARS_WAREHOUSE_DB_USER,
+        'PASSWORD': EARS_WAREHOUSE_DB_PASSWORD,
+        'HOST': EARS_WAREHOUSE_DB_HOST,
+        'PORT': EARS_WAREHOUSE_DB_PORT,
     },
 }
 
@@ -145,14 +139,12 @@ logger.debug("STATICFILES_DIRS: {}".format(', '.join(STATICFILES_DIRS)))
 
 # Slack
 
-SLACK_VERIFICATION_TOKEN = os.environ.get('SLACK_VERIFICATION_TOKEN')
-
 RQ_QUEUES = {
     'default': {
-        'HOST': os.environ.get('RQ_DEFAULT_HOST'),
-        'PORT': os.environ.get('RQ_DEFAULT_PORT'),
-        'DB': os.environ.get('RQ_DEFAULT_DB'),
-        'PASSWORD': os.environ.get('RQ_DEFAULT_PASSWORD'),
+        'HOST': RQ_DEFAULT_HOST,
+        'PORT': RQ_DEFAULT_PORT,
+        'DB': RQ_DEFAULT_DB,
+        'PASSWORD': RQ_DEFAULT_PASSWORD,
         'DEFAULT_TIMEOUT': 500,
     },
 }
