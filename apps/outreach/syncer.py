@@ -1,4 +1,3 @@
-import os
 import json
 import math
 from datetime import datetime, timedelta
@@ -11,9 +10,11 @@ from apps.api_connection.models import ApiConnection, ApiSyncStatus, NoApiSyncSt
 from apps.visualizer.models import Client
 from .models import OutreachAccount, OutreachProspect, OutreachProspectV1, OutreachUser, OutreachMailing, OutreachCall
 
+from ears.env_variables import OUTREACH_CLIENT_ID, OUTREACH_CLIENT_SECRET
+
 OUTREACH_CONNECTION = {
-    'client_id': os.environ.get('OUTREACH_CLIENT_ID'),
-    'client_secret': os.environ.get('OUTREACH_CLIENT_SECRET'),
+    'client_id': OUTREACH_CLIENT_ID,
+    'client_secret': OUTREACH_CLIENT_SECRET,
     'scope': [
         'profile', 'email', 'read_prospects', 'read_sequences', 'read_accounts', 'read_activities',
         'read_mailings', 'read_mappings', 'read_users', 'read_calls', 'read_call_purposes', 'read_call_dispositions',

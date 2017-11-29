@@ -1,11 +1,12 @@
 import os
 import requests
 from urllib.parse import urlencode
+from ears.env_variables import SALESFORCE_CONSUMER_KEY, SALESFORCE_CONSUMER_SECRET
 
 
 SALESFORCE_CONNECTION = {
-    'consumer_key': os.environ.get('SALESFORCE_CONSUMER_KEY'),
-    'consumer_secret': os.environ.get('SALESFORCE_CONSUMER_SECRET'),
+    'consumer_key': SALESFORCE_CONSUMER_KEY,
+    'consumer_secret': SALESFORCE_CONSUMER_SECRET,
     'scope': [
         'full',
         'refresh_token',
