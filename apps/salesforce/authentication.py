@@ -1,4 +1,3 @@
-import os
 import requests
 from urllib.parse import urlencode
 from ears.env_variables import SALESFORCE_CONSUMER_KEY, SALESFORCE_CONSUMER_SECRET
