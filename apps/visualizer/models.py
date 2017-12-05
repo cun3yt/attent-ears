@@ -116,10 +116,12 @@ class User(AbstractUser, TimeStampedMixin):
     def get_google_oauth2_user(self):
         query_set = self.social_auth.filter(provider='google-oauth2')
 
-        if query_set.count() < 1:
+        authentication_count = query_set.count()
+
+        if authentication_count < 1:
             exception_msg = "No Authentication Found for User Email: {}".format(self.email)
             raise exceptions.OAuth2UserNotAvailable(message=exception_msg)
-        elif query_set.count() > 1:
+        elif authentication_count > 1:
             exception_msg = "More Than One Authentication Found for User Email: {}".format(self.email)
             raise exceptions.OAuth2UserNotAvailable(message=exception_msg)
 
