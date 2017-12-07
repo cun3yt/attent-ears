@@ -70,10 +70,10 @@ class ApiSyncStatus(NoUpdateTimeStampedMixin):
 
     @staticmethod
     def get_last_completed_sync(api_connection: ApiConnection, resource):
-        # TODO: Simplify with `objects.latest`
         try:
             return ApiSyncStatus.objects.filter(api_connection=api_connection,
                                                 resource=resource,
-                                                end__isnull=False).order_by('-start')[0]
+                                                end__isnull=False).latest(field_name='start')
+
         except Exception:
             raise NoApiSyncStatusError
