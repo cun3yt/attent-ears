@@ -21,14 +21,12 @@ class RetrySync(Exception):
 
 
 class CalendarConnector:  # Google API connection for a given User
-    _service = None
-
     def __init__(self, user: User):
         oauth2_user = user.get_google_oauth2_user()
+        self._service = self._setup_client(oauth2_user)
 
-        self._setup_client(oauth2_user)
-
-    def _setup_client(self, oauth2_user):
+    @staticmethod
+    def _setup_client(oauth2_user):
         auth_details = oauth2_user.extra_data
 
         credentials = client.OAuth2Credentials(
@@ -44,15 +42,13 @@ class CalendarConnector:  # Google API connection for a given User
         )
 
         http = credentials.authorize(httplib2.Http())
-        self._service = discovery.build('calendar', 'v3', http=http)
+        return discovery.build('calendar', 'v3', http=http)
 
     def get_service(self):
         return self._service
 
 
 class CalendarStorage:
-    _logger_fn = None
-
     def __init__(self, logger_fn):
         self._logger_fn = logger_fn
 
@@ -169,10 +165,6 @@ class CalendarSyncer:
 
     CAL_EVENT_TIME_MIN = '2015-01-01T00:00:00+00:00'
 
-    _user = None
-    _connector = None
-    _storage = None
-
     def __init__(self, user: User, storage: CalendarStorage):
         self._user = user
         self._connector = CalendarConnector(user=user)
@@ -259,7 +251,7 @@ class CalendarSyncer:
         sync_token = sync_state.get('sync_token')
 
         while True:
-            query_params={
+            query_params = {
                 'calendarId': calendar.email_address,
                 'fields': fields,
                 'pageToken': page_token,
@@ -271,7 +263,14 @@ class CalendarSyncer:
 
             print(" Fetching a page of events for calendar: {}".format(calendar.email_address))
 
-            response = service.events().list(**query_params).execute()
+            try:
+                response = service.events().list(**query_params).execute()
+            except HttpError as exception:
+                print("Exception has occurred!")
+                status_code = exception.resp.status
+                error_msg = json.loads(exception.content)['error']['errors'][0]['message']
+                print("Error: Code ['{}'], Message ['{}']".format(status_code, error_msg))
+                return
 
             self._storage.save_calendar_events(response, calendar.sync_user.client)
             self._storage.log(email_address=calendar.email_address,
@@ -315,13 +314,11 @@ class SyncEnvironment:
     (error code: 410, https://developers.google.com/google-apps/calendar/v3/errors#410_gone).
     Other errors need to be handled, too.
     """
-    _client = None      # type: Client
-    _storage = None     # type: CalendarStorage
-    _syncers = {}
 
     def __init__(self, app_client: Client):
-        self._client = app_client
-        self._storage = CalendarStorage(GoogleCalendarApiLogs.log)
+        self._client = app_client       # type: Client
+        self._storage = CalendarStorage(GoogleCalendarApiLogs.log)  # type: CalendarStorage
+        self._syncers = {}
 
     def sync(self):
         for user in self._client.user_set.all():
